@@ -22,6 +22,7 @@ class Token(namedtuple('Token', ['kind', 'content'])):
         elif s == 's': return Token('String', s)
         elif s == 'l': return Token('Length', s)
         elif s in ('x', 'y', 'z'): return Token('Variable', s)
+        elif s == ';': return Token('Semi', s)
         elif s.isnumeric(): return Token('Number', int(s))
         else: raise ValueError("Can't parse string '{}' into token".format(s))
 
@@ -38,7 +39,7 @@ def tokenize(string):
                 tokens.append(Token.from_string(token_string))
                 token_string = ''
             token_string = ''
-        elif c in ('+', '-', '*', '/', '(', ')', '>', '<', '=', 'p', 's', 'l', 'x', 'y', 'z'):
+        elif c in ('+', '-', '*', '/', '(', ')', '>', '<', '=', 'p', 's', 'l', 'x', 'y', 'z', ';'):
             working_on_a_number = False
             if token_string:
                 tokens.append(Token.from_string(token_string))
@@ -46,6 +47,8 @@ def tokenize(string):
             tokens.append(Token.from_string(c))
         elif c.isnumeric():
             token_string += c
+        else:
+            raise ValueError('Unknown character: {}'.format(c))
 
     if token_string:
         tokens.append(Token.from_string(token_string))

@@ -16,11 +16,18 @@ def pprint_tree(node, indent=2):
         print(' '*indent + node.op.content)
         pprint_tree(node.right, indent + 2)
 
-def parse(tokens):
-    tree, unused_tokens = parse_greater_or_less(tokens)
-    if unused_tokens:
-        raise ValueError("Trailing unparsed tokens: {}".format(unused_tokens))
-    return tree
+def parse(remaining_tokens):
+    stmts = []
+    while remaining_tokens:
+        stmt, remaining_tokens = parse_statement(remaining_tokens)
+        stmts.append(stmt)
+    return stmts
+
+def parse_statement(tokens):
+    stmt, remaining_tokens = parse_greater_or_less(tokens)
+    semi, *remaining_tokens = remaining_tokens
+    assert semi.kind == 'Semi'
+    return stmt, remaining_tokens
 
 def parse_greater_or_less(tokens):
     expr, remaining_tokens = parse_plus_or_minus(tokens)

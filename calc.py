@@ -19,6 +19,10 @@ unary_funcs = {
     'Length': len,
 }
 
+def execute(stmt):
+    if isinstance(stmt, (BinaryOp, UnaryOp, Token)):
+        value = evaluate(stmt)
+
 def evaluate(node):
     if isinstance(node, Token):
         return node.content
@@ -33,10 +37,12 @@ def debug_repl():
             s = input('> ')
             tokens = tokenize(s)
             print(repr(tokens))
-            tree = parse(tokens)
-            print(repr(tree))
-            pprint_tree(tree)
-            print(evaluate(tree))
+            stmts = parse(tokens)
+            print(repr(stmts))
+            pprint_tree(stmts)
+            for stmt in stmts:
+                execute(stmt)
+            #print(evaluate(stmts))
         except ValueError as e:
             print(e)
 

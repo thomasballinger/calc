@@ -4,6 +4,7 @@ from tokens import Token, tokenize
 
 BinaryOp = namedtuple('BinaryOp', ['left', 'op', 'right'])
 UnaryOp = namedtuple('UnaryOp', ['op', 'right'])
+Assignment = namedtuple('Assignment', ['variable', 'expression'])
 
 def pprint_tree(node, indent=2):
     if isinstance(node, Token):
@@ -24,10 +25,20 @@ def parse(remaining_tokens):
     return stmts
 
 def parse_statement(tokens):
-    stmt, remaining_tokens = parse_greater_or_less(tokens)
+    if len(tokens) >= 2 and tokens[0].kind == 'Variable' and tokens[1].kind == 'Equals':
+        stmt, remaining_tokens = parse_assignment_statement(tokens)
+    else:
+        stmt, remaining_tokens = parse_greater_or_less(tokens)
     semi, *remaining_tokens = remaining_tokens
     assert semi.kind == 'Semi'
     return stmt, remaining_tokens
+
+def parse_assignment_statement(tokens):
+    var, equals, *remaining_tokens = tokens
+    assert var.kind == 'Variable'
+    assert equals.kind == 'Equals'
+    expression, remaining_tokens = parse_greater_or_less(remaining_tokens)
+    return Assignment(variable=var, expression=expression), remaining_tokens
 
 def parse_greater_or_less(tokens):
     expr, remaining_tokens = parse_plus_or_minus(tokens)

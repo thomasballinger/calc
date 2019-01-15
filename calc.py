@@ -1,7 +1,7 @@
 from collections import namedtuple
 from num2words import num2words
 from tokens import Token, tokenize
-from parse import BinaryOp, UnaryOp, pprint_tree, parse
+from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment
 
 binary_funcs = {
     'Plus': lambda x, y: x+y,
@@ -22,6 +22,9 @@ unary_funcs = {
 def execute(stmt):
     if isinstance(stmt, (BinaryOp, UnaryOp, Token)):
         value = evaluate(stmt)
+    elif isinstance(stmt, Assignment):
+        value = evaluate(stmt.expression)
+        print('set', stmt.variable.content, 'to', value)
 
 def evaluate(node):
     if isinstance(node, Token):

@@ -82,6 +82,9 @@ def parse_operand(tokens):
     if tokens[0].kind == 'Number':
         expr, *remaining_tokens = tokens
         return expr, remaining_tokens
+    elif tokens[0].kind == 'Variable':
+        expr, *remaining_tokens = tokens
+        return expr, remaining_tokens
     elif tokens[0].kind in ('Minus', 'Plus', 'Print', 'String', 'Length'):
         expr, remaining_tokens = parse_unary_op(tokens)
         return expr, remaining_tokens

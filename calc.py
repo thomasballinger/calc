@@ -33,13 +33,14 @@ signatures = {
     ('String', int): str,
 }
 
-def execute(stmt):
+def execute(stmt, variables):
     if isinstance(stmt, (BinaryOp, UnaryOp, Token)):
         print(type_infer(stmt))
-        value = evaluate(stmt)
+        evaluate(stmt, variables)
     elif isinstance(stmt, Assignment):
-        value = evaluate(stmt.expression)
+        value = evaluate(stmt.expression, variables)
         print('set', stmt.variable.content, 'to', value)
+        variables[stmt.variable.content] = value
 
 def type_infer(node):
     if isinstance(node, Token):
@@ -55,15 +56,18 @@ def type_infer(node):
         return result_type
 
 
-def evaluate(node):
+def evaluate(node, variables):
     if isinstance(node, Token):
         return node.content
     elif isinstance(node, BinaryOp):
-        return binary_funcs[node.op.kind](evaluate(node.left), evaluate(node.right))
+        return binary_funcs[node.op.kind](evaluate(node.left, variables), evaluate(node.right, variables))
     elif isinstance(node, UnaryOp):
-        return unary_funcs[node.op.kind](evaluate(node.right))
+        return unary_funcs[node.op.kind](evaluate(node.right, variables))
+    elif isinstance(node, Variable):
+        return variables[node.content]
 
 def debug_repl():
+    variables = {}
     while True:
         try:
             s = input('> ')
@@ -73,8 +77,8 @@ def debug_repl():
             print(repr(stmts))
             pprint_tree(stmts)
             for stmt in stmts:
-                execute(stmt)
-            #print(evaluate(stmts))
+                execute(stmt, variables)
+            print(variables)
         except ValueError as e:
             print(e)
 

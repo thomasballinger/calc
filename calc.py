@@ -1,7 +1,9 @@
 from collections import namedtuple
+import sys
 from num2words import num2words
 from tokens import Token, tokenize
 from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment
+from typeinfer import type_infer_program
 
 binary_funcs = {
     'Plus': lambda x, y: x+y,
@@ -18,43 +20,18 @@ unary_funcs = {
     'String': num2words,
     'Length': len,
 }
-signatures = {
-    ('Plus', int, int): int,
-    ('Plus', str, str): str,
-    ('Print', str): str,
-    ('Print', int): int,
-    ('Minus', int, int): int,
-    ('Minus', int): int,
-    ('Plus', int): int,
-    ('Star', int, int): int,
-    ('Slash', int, int): int,
-    ('Greater', int, int): bool,
-    ('Less', int, int): bool,
-    ('String', int): str,
-}
+
+def execute_program(stmts, variables):
+    for stmt in stmts:
+        execute(stmt, variables)
 
 def execute(stmt, variables):
     if isinstance(stmt, (BinaryOp, UnaryOp, Token)):
-        print(type_infer(stmt))
         evaluate(stmt, variables)
     elif isinstance(stmt, Assignment):
         value = evaluate(stmt.expression, variables)
-        print('set', stmt.variable.content, 'to', value)
+        print('setting', stmt.variable.content, 'to', value)
         variables[stmt.variable.content] = value
-
-def type_infer(node):
-    if isinstance(node, Token):
-        if node.kind == 'Number': return int
-    elif isinstance(node, BinaryOp):
-        left_type = type_infer(node.left)
-        right_type = type_infer(node.right)
-        result_type = signatures[(node.op.kind, left_type, right_type)]
-        return result_type
-    elif isinstance(node, UnaryOp):
-        expression_type = type_infer(node.right)
-        result_type = signatures[(node.op.kind, expression_type)]
-        return result_type
-
 
 def evaluate(node, variables):
     if isinstance(node, Token):
@@ -72,17 +49,36 @@ def debug_repl():
         try:
             s = input('> ')
             tokens = tokenize(s)
-            print(repr(tokens))
+            print('tokens:', repr(tokens))
             stmts = parse(tokens)
-            print(repr(stmts))
-            pprint_tree(stmts)
+            print('AST of each statement:')
             for stmt in stmts:
-                execute(stmt, variables)
-            print(variables)
+                pprint_tree(stmt)
+            print("type inferring program...")
+            type_infer_program(stmts, s)
+            print('running program...')
+            execute_program(stmts, variables)
+            print('global symbol table at end of program:', variables)
         except ValueError as e:
             print(e)
+
+def run_program(source):
+    """
+    >>> run_program("p 1; p (2 + 3);")
+    1
+    5
+    """
+    tokens = tokenize(source)
+    stmts = parse(tokens)
+    variables = {}
+    execute_program(stmts, variables)
 
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
-    debug_repl()
+
+    args = sys.argv[1:]
+    if len(args) == 1:
+        run_program(open(args[0]).read())
+    else:
+        debug_repl()

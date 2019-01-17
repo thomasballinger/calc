@@ -6,7 +6,7 @@ BinaryOp = namedtuple('BinaryOp', ['left', 'op', 'right'])
 UnaryOp = namedtuple('UnaryOp', ['op', 'right'])
 Assignment = namedtuple('Assignment', ['variable', 'expression'])
 
-def pprint_tree(node, indent=2):
+def pprint_tree_small(node, indent=2):
     if isinstance(node, Token):
         print(' '*indent + str(node.content))
     elif isinstance(node, BinaryOp):
@@ -16,6 +16,60 @@ def pprint_tree(node, indent=2):
     elif isinstance(node, UnaryOp):
         print(' '*indent + node.op.content)
         pprint_tree(node.right, indent + 2)
+
+def pprint_tree(node):
+    print(pformat_full_tree(node))
+
+def pformat_full_tree(node, indent=0):
+    space = ' '*indent
+    nl = '\n'
+    if isinstance(node, Token):
+        return(f"{repr(node)}")
+    elif isinstance(node, BinaryOp):
+        return(
+                   f"BinaryOp(op={node.op},{nl}"
+            f"{space}         left={pformat_full_tree(node.left, indent+9+5)}{nl}"
+            f"{space}         right={pformat_full_tree(node.right, indent+9+6)})"
+        )
+    elif isinstance(node, UnaryOp):
+        return(
+                  f"UnaryOp(op={node.op},{nl}"
+            f"{space}         left={pformat_full_tree(node.left, indent+8+5)}{nl}"
+            f"{space}         right={pformat_full_tree(node.right, indent+8+6)})"
+        )
+    elif isinstance(node, Assignment):
+        return(
+                   f"Assignment({node.variable},{nl}"
+            f"{space}           value={pformat_full_tree(node.expression, indent+9+6)})"
+        )
+    else:
+        raise ValueError("Can't parse tree node: {}".format(node))
+
+def start_end(node):
+    if isinstance(node, Token):
+        return (node.start, node.end)
+    elif isinstance(node, BinaryOp):
+        left_start, left_end= start_end(node.left)
+        op_start, op_end = start_end(node.op)
+        right_start, right_end = start_end(node.right)
+        return (
+            min([left_start, op_start, right_start]),
+            max([left_end, op_end, right_end])
+        )
+    elif isinstance(node, UnaryOp):
+        op_start, op_end = start_end(node.op)
+        right_start, right_end = start_end(node.right)
+        return (
+            min([op_start, right_start]),
+            max([op_end, right_end])
+        )
+    elif isinstance(node, Assignment):
+        var_start, var_end = start_end(node.variable)
+        expr_start, expr_end = start_end(node.expression)
+        return (
+            min([var_start, expr_start]),
+            max([var_end, expr_end])
+        )
 
 def parse(remaining_tokens):
     stmts = []
@@ -29,6 +83,8 @@ def parse_statement(tokens):
         stmt, remaining_tokens = parse_assignment_statement(tokens)
     else:
         stmt, remaining_tokens = parse_greater_or_less(tokens)
+    if not remaining_tokens:
+        raise ValueError("Expected semicolon after expression...")
     semi, *remaining_tokens = remaining_tokens
     assert semi.kind == 'Semi'
     return stmt, remaining_tokens

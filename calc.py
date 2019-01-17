@@ -4,6 +4,7 @@ from num2words import num2words
 from tokens import Token, tokenize
 from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment
 from typeinfer import type_infer_program
+from linter import lint_program
 
 binary_funcs = {
     'Plus': lambda x, y: x+y,
@@ -56,6 +57,8 @@ def debug_repl():
                 pprint_tree(stmt)
             print("type inferring program...")
             type_infer_program(stmts, s)
+            print("linting program...")
+            lint_program(stmts, s)
             print('running program...')
             execute_program(stmts, variables)
             print('global symbol table at end of program:', variables)

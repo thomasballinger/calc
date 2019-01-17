@@ -34,7 +34,6 @@ def pformat_full_tree(node, indent=0):
     elif isinstance(node, UnaryOp):
         return(
                   f"UnaryOp(op={node.op},{nl}"
-            f"{space}         left={pformat_full_tree(node.left, indent+8+5)}{nl}"
             f"{space}         right={pformat_full_tree(node.right, indent+8+6)})"
         )
     elif isinstance(node, Assignment):

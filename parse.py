@@ -7,6 +7,7 @@ BinaryOp = namedtuple('BinaryOp', ['left', 'op', 'right'])
 UnaryOp = namedtuple('UnaryOp', ['op', 'right'])
 Assignment = namedtuple('Assignment', ['variable', 'expression'])
 If = namedtuple('If', ['condition', 'body', 'else_body'])
+While = namedtuple('While', ['condition', 'body'])
 Call = namedtuple('Call', ['callable', 'arguments'])
 Return = namedtuple('Return', ['expression'])
 Function = namedtuple('Function', ['params', 'body'])
@@ -65,10 +66,15 @@ def pformat_full_tree(node, indent=0):
         s += ')'
         return s
     elif isinstance(node, If):
-        s = f"If(cond={pformat_full_tree(node.condition, indent+3)},{nl}"
+        s = f"If(cond={pformat_full_tree(node.condition, indent+3+5)},{nl}"
         s += pformat_body('body', node.body, indent=indent+3)
         if node.else_body:
             s += pformat_body('else_body', node.else_body, indent=indent+3)
+        s += ')'
+        return s
+    elif isinstance(node, While):
+        s = f"While(cond={pformat_full_tree(node.condition, indent+6+5)},{nl}"
+        s += pformat_body('body', node.body, indent=indent+6)
         s += ')'
         return s
     else:
@@ -128,6 +134,8 @@ def parse_statement(tokens):
         stmt, remaining_tokens = parse_assignment_statement(tokens)
     elif tokens and tokens[0].kind == 'If':
         stmt, remaining_tokens = parse_if_statement(tokens)
+    elif tokens and tokens[0].kind == 'While':
+        stmt, remaining_tokens = parse_while_statement(tokens)
     elif tokens and tokens[0].kind == 'Return':
         stmt, remaining_tokens = parse_return_statement(tokens)
     else:
@@ -167,6 +175,19 @@ def parse_if_statement(tokens):
             else_statements.append(stmt)
         end, *remaining_tokens = remaining_tokens
     return If(condition=condition, body=statements, else_body=else_statements), remaining_tokens
+
+def parse_while_statement(tokens):
+    while_, *remaining_tokens = tokens
+    assert while_.kind == 'While', if_.kind
+    condition, remaining_tokens = parse_expression(remaining_tokens)
+    do, *remaining_tokens = remaining_tokens
+    assert do.kind == 'Do'
+    statements = []
+    while remaining_tokens[0].kind not in ('End'):
+        stmt, remaining_tokens = parse_statement(remaining_tokens)
+        statements.append(stmt)
+    end, *remaining_tokens = remaining_tokens
+    return While(condition=condition, body=statements), remaining_tokens
 
 def parse_return_statement(tokens):
     return_, *remaining_tokens = tokens
@@ -304,8 +325,8 @@ def parse_function(tokens):
 
 
 if __name__ == '__main__':
-    #toks = tokenize('(x, y) => a; end')
+    #toks = tokenize('while x < 4 do x = x + 1; end;')
     #import pudb; pudb.set_trace();
-    #parse_function(toks)
+    #parse_while_statement(toks)
     import doctest
     doctest.testmod()

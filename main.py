@@ -4,7 +4,7 @@ from collections import namedtuple
 import sys
 from num2words import num2words
 from tokens import Token, tokenize
-from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, Call, Return, Function
+from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function
 from typeinfer import type_infer_program
 from linter import lint_program
 from completer import completer
@@ -38,6 +38,8 @@ def execute(stmt, variables, debug=False):
         if debug: print('setting', stmt.variable.content, 'to', value)
         variables[stmt.variable.content] = value
     elif isinstance(stmt, If):
+        raise ValueError("Don't know how to execute statement: {}".format(stmt))
+    elif isinstance(stmt, While):
         raise ValueError("Don't know how to execute statement: {}".format(stmt))
     elif isinstance(stmt, Call):
         raise ValueError("Don't know how to execute statement: {}".format(stmt))
@@ -95,6 +97,7 @@ def debug_repl():
                 pass
             else:
                 debug_exec(tokens, variables)
+                tokens = []
         elif s and tokens:
             tokens += tokenize(s)
 

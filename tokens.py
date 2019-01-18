@@ -24,6 +24,8 @@ class Token(namedtuple('Token', ['kind', 'content', 'start', 'end'])):
         elif s == 'if': return Token('If', s, start, end)
         elif s == 'then': return Token('Then', s, start, end)
         elif s == 'else': return Token('Else', s, start, end)
+        elif s == 'while': return Token('While', s, start, end)
+        elif s == 'do': return Token('Do', s, start, end)
         elif s == 'end': return Token('End', s, start, end)
         elif s == 'return': return Token('Return', s, start, end)
         elif s.isnumeric(): return Token('Number', int(s), start, end)

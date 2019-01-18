@@ -62,7 +62,12 @@ def evaluate(node, variables):
     elif isinstance(node, Function):
         raise ValueError("Don't know how to evaluate expression node: {}".format(node))
     elif isinstance(node, Call):
-        raise ValueError("Don't know how to evaluate expression node: {}".format(node))
+        f = evaluate(node.callable, variables)
+        args = [evaluate(expr, variables) for expr in node.arguments]
+        if type(f) == type(lambda: None):
+            return f(*args)
+        else:
+            raise ValueError("Don't know how to evaluate: {}".format(node))
 
 def debug_repl():
     import readline, os

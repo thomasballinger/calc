@@ -19,25 +19,28 @@ class Token(namedtuple('Token', ['kind', 'content', 'start', 'end'])):
         elif s == '>': return Token('Greater', s, start, end)
         elif s == '=': return Token('Equals', s, start, end)
         elif s == '<': return Token('Less', s, start, end)
-        elif s == 'p': return Token('Print', s, start, end)
-        elif s == 's': return Token('String', s, start, end)
-        elif s == 'l': return Token('Length', s, start, end)
-        elif s in ('x', 'y', 'z'): return Token('Variable', s, start, end)
         elif s == ';': return Token('Semi', s, start, end)
+        elif s == ',': return Token('Comma', s, start, end)
+        elif s == 'if': return Token('If', s, start, end)
+        elif s == 'then': return Token('Then', s, start, end)
+        elif s == 'else': return Token('Else', s, start, end)
+        elif s == 'end': return Token('End', s, start, end)
+        elif s == 'return': return Token('Return', s, start, end)
         elif s.isnumeric(): return Token('Number', int(s), start, end)
+        elif s[0].isalpha() and s.isalnum(): return Token('Variable', s, start, end)
         else: raise ValueError("Can't parse string '{}' into token".format(s))
-    
-    """
+
     def __repr__(self):
         if self.kind in ("Number", "Variable"):
-            return f"Token(kind={self.kind}, content={self.content})"
-        return f"Token(kind={self.kind})"
-    """
+            return f"Token(kind='{self.kind}', content={repr(self.content)})"
+        return f"Token(kind='{self.kind}')"
 
 def tokenize(string):
     """
     >>> tokenize('1 - 22')
-    [Token(kind='Number', content=1), Token(kind='Minus', content='-'), Token(kind='Number', content=22)]
+    [Token(kind='Number', content=1), Token(kind='Minus'), Token(kind='Number', content=22)]
+    >>> tokenize('abc')
+    [Token(kind='Variable', content='abc')]
     """
     tokens = []
     token_string = ''
@@ -47,13 +50,14 @@ def tokenize(string):
                 tokens.append(Token.from_string(token_string, i-len(token_string)))
                 token_string = ''
             token_string = ''
-        elif c in ('+', '-', '*', '/', '(', ')', '>', '<', '=', 'p', 's', 'l', 'x', 'y', 'z', ';'):
-            working_on_a_number = False
+        elif c in ('+', '-', '*', '/', '(', ')', '>', '<', '=', ';', ','):
             if token_string:
                 tokens.append(Token.from_string(token_string, i-len(token_string)))
                 token_string = ''
             tokens.append(Token.from_string(c, i))
         elif c.isnumeric():
+            token_string += c
+        elif c.isalpha():
             token_string += c
         else:
             raise ValueError('Unknown character: {}'.format(c))
@@ -62,3 +66,7 @@ def tokenize(string):
         tokens.append(Token.from_string(token_string, i-len(token_string)))
 
     return tokens
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()

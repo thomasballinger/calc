@@ -25,6 +25,27 @@ builtin_funcs = {
     'length': len,
 }
 
+class Scope:
+    def create_child_scope(self):
+        return Scope(parent=self)
+
+    def __init__(self, parent=None):
+        self.bindings = {}
+        self.parent = parent
+
+    def get(self, name):
+        return self.bindings[name]
+
+    def set(self, name, value):
+        self.bindings[name] = value
+
+    def __repr__(self):
+        if self.parent is None:
+            return f"Scope({repr(self.bindings)})"
+        else:
+            return f"Scope({repr(self.bindings)}, parent=\n{repr(self.parent)})"
+
+
 def execute_program(stmts, variables, debug=False):
     for stmt in stmts:
         execute(stmt, variables, debug=debug)
@@ -36,7 +57,7 @@ def execute(stmt, variables, debug=False):
     elif isinstance(stmt, Assignment):
         value = evaluate(stmt.expression, variables)
         if debug: print('setting', stmt.variable.content, 'to', value)
-        variables[stmt.variable.content] = value
+        variables.set(stmt.variable.content, value)
     elif isinstance(stmt, If):
         value = evaluate(stmt.condition, variables)
         if value:
@@ -55,8 +76,8 @@ def evaluate(node, variables):
         if node.kind == 'Number':
             return node.content
         elif node.kind == 'Variable':
-            print(f'looking up {node.content}, got {variables.get(node.content, None)}')
-            return variables[node.content]
+            print(f'looking up {node.content}, got {variables.get(node.content)}')
+            return variables.get(node.content)
     elif isinstance(node, BinaryOp):
         return binary_op_funcs[node.op.kind](evaluate(node.left, variables), evaluate(node.right, variables))
     elif isinstance(node, UnaryOp):
@@ -84,8 +105,9 @@ def debug_repl():
 
     readline.parse_and_bind("tab: complete")
     readline.set_completer(completer)
-    variables = {}
-    variables.update(builtin_funcs)
+    variables = Scope()
+    for name in builtin_funcs:
+        variables.set(name, builtin_funcs[name])
     tokens = []
     lines = 0
     prompt = '>'
@@ -125,7 +147,7 @@ def debug_exec(tokens, variables):
             pprint_tree(stmt)
         print('running program...')
         execute_program(stmts, variables, debug=True)
-        #print('global symbol table at end of program:', variables)
+        print('global symbol table at end of program:\n', repr(variables))
     except ValueError as e:
         print(e)
     except AssertionError as e:

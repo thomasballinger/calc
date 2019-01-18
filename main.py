@@ -38,7 +38,13 @@ def execute(stmt, variables, debug=False):
         if debug: print('setting', stmt.variable.content, 'to', value)
         variables[stmt.variable.content] = value
     elif isinstance(stmt, If):
-        raise ValueError("Don't know how to execute statement: {}".format(stmt))
+        value = evaluate(stmt.condition, variables)
+        if value:
+            for s in stmt.body:
+                execute(s, variables)
+        else:
+            for s in stmt.else_body:
+                execute(s, variables)
     elif isinstance(stmt, While):
         raise ValueError("Don't know how to execute statement: {}".format(stmt))
 

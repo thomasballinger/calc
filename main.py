@@ -46,7 +46,9 @@ def execute(stmt, variables, debug=False):
             for s in stmt.else_body:
                 execute(s, variables)
     elif isinstance(stmt, While):
-        raise ValueError("Don't know how to execute statement: {}".format(stmt))
+        while evaluate(stmt.condition, variables):
+            for s in stmt.body:
+                execute(s, variables)
 
 def evaluate(node, variables):
     if isinstance(node, Token):

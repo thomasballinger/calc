@@ -30,7 +30,7 @@ def execute_program(stmts, variables, debug=False):
         execute(stmt, variables, debug=debug)
 
 def execute(stmt, variables, debug=False):
-    if isinstance(stmt, (BinaryOp, UnaryOp, Token)):
+    if isinstance(stmt, (BinaryOp, UnaryOp, Token, Call)):
         value = evaluate(stmt, variables)
         if debug: print('expr in expr stmt evaled to:', value)
     elif isinstance(stmt, Assignment):
@@ -40,8 +40,6 @@ def execute(stmt, variables, debug=False):
     elif isinstance(stmt, If):
         raise ValueError("Don't know how to execute statement: {}".format(stmt))
     elif isinstance(stmt, While):
-        raise ValueError("Don't know how to execute statement: {}".format(stmt))
-    elif isinstance(stmt, Call):
         raise ValueError("Don't know how to execute statement: {}".format(stmt))
 
 def evaluate(node, variables):
@@ -56,6 +54,8 @@ def evaluate(node, variables):
     elif isinstance(node, UnaryOp):
         return unary_funcs[node.op.kind](evaluate(node.right, variables))
     elif isinstance(node, Function):
+        raise ValueError("Don't know how to evaluate expression node: {}".format(node))
+    elif isinstance(node, Call):
         raise ValueError("Don't know how to evaluate expression node: {}".format(node))
 
 def debug_repl():
@@ -75,12 +75,13 @@ def debug_repl():
     variables.update(builtin_funcs)
     tokens = []
     lines = 0
+    prompt = '>'
     while True:
         try:
-            s = input('> ')
+            s = input(prompt + ' ')
         except KeyboardInterrupt as e:
             if tokens:
-                tokens = []
+                tokens, prompt = [], '>'
                 print('input cleared')
                 continue
             else:
@@ -88,20 +89,21 @@ def debug_repl():
 
         if s == '' and tokens:
             debug_exec(tokens, variables)
-            tokens = []
+            tokens, prompt = [], '>'
         elif s and not tokens:
             tokens = tokenize(s)
             try:
                 parse(tokens)
             except:
-                pass
+                prompt = '...'
             else:
                 debug_exec(tokens, variables)
-                tokens = []
+                tokens, prompt = [], '>'
         elif s and tokens:
             tokens += tokenize(s)
 
 def debug_exec(tokens, variables):
+    import traceback
     try:
         print('tokens:', ' '.join(str(tok.content) for tok in tokens))
         stmts = parse(tokens)
@@ -111,8 +113,12 @@ def debug_exec(tokens, variables):
         print('running program...')
         execute_program(stmts, variables, debug=True)
         #print('global symbol table at end of program:', variables)
-    except (ValueError, AssertionError) as e:
+    except ValueError as e:
         print(e)
+    except AssertionError as e:
+        traceback.print_exc()
+    except KeyError as e:
+        print('bad lookup of variable', e)
 
 def run_program(source):
     """

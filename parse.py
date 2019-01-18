@@ -69,6 +69,7 @@ def pformat_full_tree(node, indent=0):
         s = f"If(cond={pformat_full_tree(node.condition, indent+3+5)},{nl}"
         s += pformat_body('body', node.body, indent=indent+3)
         if node.else_body:
+            s += '\n'
             s += pformat_body('else_body', node.else_body, indent=indent+3)
         s += ')'
         return s

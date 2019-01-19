@@ -83,14 +83,20 @@ def evaluate(node, variables):
     elif isinstance(node, UnaryOp):
         return unary_funcs[node.op.kind](evaluate(node.right, variables))
     elif isinstance(node, Function):
-        raise ValueError("Don't know how to evaluate expression node: {}".format(node))
+        return node;
     elif isinstance(node, Call):
         f = evaluate(node.callable, variables)
         args = [evaluate(expr, variables) for expr in node.arguments]
         if type(f) == type(lambda: None):
             return f(*args)
         else:
-            raise ValueError("Don't know how to evaluate: {}".format(node))
+            new_scope = variables.create_child_scope()
+            for param, arg in zip(f.params, args):
+                new_scope.set(param.content, arg)
+            for stmt in f.body:
+                execute(stmt, new_scope)
+            return None
+            #raise ValueError("Don't know how to evaluate: {}".format(node))
 
 def debug_repl():
     import readline, os

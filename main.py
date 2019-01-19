@@ -34,9 +34,22 @@ class Scope:
         self.parent = parent
 
     def get(self, name):
-        return self.bindings[name]
+        cur = self
+        while cur is not None:
+            if name in cur.bindings:
+                return cur.bindings[name]
+            cur = cur.parent
+        raise KeyError(f"Name '{name}' not found in scopes")
 
     def set(self, name, value):
+        cur = self
+        while cur is not None:
+            if name in cur.bindings:
+                cur.bindings[name] = value
+                return
+            cur = cur.parent
+
+        # create new variable if none found
         self.bindings[name] = value
 
     def __repr__(self):
@@ -45,6 +58,21 @@ class Scope:
         else:
             return f"Scope({repr(self.bindings)}, parent=\n{repr(self.parent)})"
 
+class Closure:
+    """Code and state, living happily together."""
+    def __init__(self, function_ast, parent_scope):
+        self.function_ast = function_ast
+        self.parent_scope = parent_scope
+
+    def execute(self, args):
+        if len(args) != len(self.function_ast.params):
+            raise ValueError("bad arity")
+        new_scope = self.parent_scope.create_child_scope()
+        for param, arg in zip(self.function_ast.params, args):
+            new_env.set(param.content, arg)
+        for stmt in self.function_ast.body:
+            execute(stmt, new_scope)
+        return None
 
 def execute_program(stmts, variables, debug=False):
     for stmt in stmts:
@@ -83,18 +111,14 @@ def evaluate(node, variables):
     elif isinstance(node, UnaryOp):
         return unary_funcs[node.op.kind](evaluate(node.right, variables))
     elif isinstance(node, Function):
-        return node;
+        return Closure(node, variables)
     elif isinstance(node, Call):
         f = evaluate(node.callable, variables)
         args = [evaluate(expr, variables) for expr in node.arguments]
         if type(f) == type(lambda: None):
             return f(*args)
         else:
-            new_scope = variables.create_child_scope()
-            for param, arg in zip(f.params, args):
-                new_scope.set(param.content, arg)
-            for stmt in f.body:
-                execute(stmt, new_scope)
+            f.execute(args)
             return None
             #raise ValueError("Don't know how to evaluate: {}".format(node))
 
@@ -158,8 +182,8 @@ def debug_exec(tokens, variables):
         print(e)
     except AssertionError as e:
         traceback.print_exc()
-    except KeyError as e:
-        print('bad lookup of variable', e)
+    #except KeyError as e:
+    #    print('bad lookup of variable', e)
 
 def run_program(source):
     """

@@ -83,7 +83,7 @@ class Closure:
             raise ValueError("bad arity")
         new_scope = self.parent_scope.create_child_scope()
         for param, arg in zip(self.function_ast.params, args):
-            new_scope.set(param.content, arg, DEBUG)
+            new_scope.set(param.content, arg)
         for stmt in self.function_ast.body:
             execute(stmt, new_scope)
         return None
@@ -117,9 +117,9 @@ def execute(stmt, variables):
         with DebugModeOff():
             t0 = time.time()
             s = open(filename).read()
-            run_program(s)
+            run_program(s, with_scope=variables)
             t = time.time() - t0
-        if DEBUG: print(f'...done in {t:.4f}s')
+        if DEBUG: print(f'...done in {t:.5f}s')
 
 def evaluate(node, variables):
     if isinstance(node, Token):
@@ -154,10 +154,11 @@ class DebugModeOn:
 class DebugModeOff:
     def __enter__(self):
         global DEBUG
+        self.orig = DEBUG
         DEBUG = False
     def __exit__(self, *args):
         global DEBUG
-        DEBUG = True
+        DEBUG = self.orig
 
 def debug_repl():
     global DEBUG
@@ -224,7 +225,7 @@ def debug_exec(tokens, variables):
     except CantFindVariable as e:
         print(e)
 
-def run_program(source):
+def run_program(source, with_scope=None):
     """
     >>> run_program("print(1); print(2 + 3);")
     1
@@ -232,10 +233,13 @@ def run_program(source):
     """
     tokens = tokenize(source)
     stmts = parse(tokens)
-    builtin_scope = Scope()
-    for name in builtin_funcs:
-        builtin_scope.set(name, builtin_funcs[name])
-    variables = builtin_scope.create_child_scope()
+    if with_scope:
+        variables = with_scope
+    else:
+        builtin_scope = Scope()
+        for name in builtin_funcs:
+            builtin_scope.set(name, builtin_funcs[name])
+        variables = builtin_scope.create_child_scope()
     execute_program(stmts, variables)
 
 if __name__ == "__main__":

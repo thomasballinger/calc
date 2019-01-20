@@ -1,0 +1,6 @@
+recurloop = (n) =>
+  if n > 0 then
+    recurloop(n - 1);
+  end;
+end;
+recurloop(100);

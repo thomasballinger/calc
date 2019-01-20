@@ -81,6 +81,9 @@ def pformat_full_tree(node, indent=0):
         return s
     elif isinstance(node, Run):
         return f"Run(filename={node.filename})"
+    elif isinstance(node, Return):
+        return(   f"Return(expression={pformat_full_tree(node.expression, indent+7+11)})"
+        )
     else:
         raise ValueError("Can't display tree node: {}".format(node))
 
@@ -203,9 +206,9 @@ def parse_while_statement(tokens):
 def parse_return_statement(tokens):
     return_, *remaining_tokens = tokens
     if remaining_tokens[0].kind == 'Semi':
-        return Return(expresssion=None), remaining_tokens
+        return Return(expression=None), remaining_tokens
     expression, remaining_tokens = parse_expression(remaining_tokens)
-    return Return(expresssion=expression), remaining_tokens
+    return Return(expression=expression), remaining_tokens
 
 def parse_expression(tokens):
     return parse_greater_or_less(tokens)

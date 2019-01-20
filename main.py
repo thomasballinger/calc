@@ -5,7 +5,7 @@ import sys
 import time
 from num2words import num2words
 from tokens import Token, tokenize
-from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function, Run
+from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function, Run, Return
 from typeinfer import type_infer_program
 from linter import lint_program
 from completer import completer
@@ -122,6 +122,8 @@ def execute(stmt, variables):
             run_program(s, with_scope=variables)
             t = time.time() - t0
         if DEBUG: print(f'...done in {t:.5f}s')
+    elif isinstance(stmt, Return):
+        raise ValueError("Don't know how to execute a return statement")
 
 def evaluate(node, variables):
     if isinstance(node, Token):

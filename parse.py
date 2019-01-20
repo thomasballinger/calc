@@ -233,7 +233,7 @@ def parse_plus_or_minus(tokens):
 def parse_multiply_or_divide(tokens):
     expr, remaining_tokens = parse_unary_op(tokens)
 
-    while remaining_tokens and remaining_tokens[0].kind in ('Star', 'Slash'):
+    while remaining_tokens and remaining_tokens[0].kind in ('Star', 'Slash', 'Percent'):
         op, *remaining_tokens = remaining_tokens
         right, remaining_tokens = parse_unary_op(remaining_tokens)
         expr = BinaryOp(expr, op, right)
@@ -284,6 +284,9 @@ def parse_primary(tokens):
         expr, *remaining_tokens = tokens
         return expr, remaining_tokens
     elif tokens[0].kind == 'Variable':
+        expr, *remaining_tokens = tokens
+        return expr, remaining_tokens
+    elif tokens[0].kind == 'String':
         expr, *remaining_tokens = tokens
         return expr, remaining_tokens
     elif tokens[0].kind == 'Left Paren' and tokens[1].kind == 'Right Paren':

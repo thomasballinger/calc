@@ -17,6 +17,7 @@ binary_op_funcs = {
     'Minus': lambda x, y: x-y,
     'Star': lambda x, y: x*y,
     'Slash': lambda x, y: x/y,
+    'Percent': lambda x, y: x%y,
     'Greater': lambda x, y: x > y,
     'Less': lambda x, y: x < y,
 }
@@ -127,6 +128,8 @@ def evaluate(node, variables):
             return node.content
         elif node.kind == 'Variable':
             return variables.get(node.content)
+        elif node.kind == 'String':
+            return node.content
     elif isinstance(node, BinaryOp):
         return binary_op_funcs[node.op.kind](evaluate(node.left, variables), evaluate(node.right, variables))
     elif isinstance(node, UnaryOp):

@@ -4,10 +4,12 @@ from collections import namedtuple
 import sys
 from num2words import num2words
 from tokens import Token, tokenize
-from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function
+from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function, Run
 from typeinfer import type_infer_program
 from linter import lint_program
 from completer import completer
+
+DEBUG = False
 
 binary_op_funcs = {
     'Plus': lambda x, y: x+y,
@@ -17,13 +19,17 @@ binary_op_funcs = {
     'Greater': lambda x, y: x > y,
     'Less': lambda x, y: x < y,
 }
-builtin_funcs = {
+unary_op_funcs = {
     'plus': lambda x: x,
     'minus': lambda x: -x,
+}
+builtin_funcs = {
     'print': lambda x: (print(x), x)[1],
     'string': num2words,
     'length': len,
 }
+
+class CantFindVariable(KeyError): pass
 
 class Scope:
     def create_child_scope(self):
@@ -39,17 +45,24 @@ class Scope:
             if name in cur.bindings:
                 return cur.bindings[name]
             cur = cur.parent
-        raise KeyError(f"Name '{name}' not found in scopes")
+        raise CantFindVariable(f"Name '{name}' not found in scopes")
 
     def set(self, name, value):
-        cur = self
+        cur, i = self, 0
         while cur is not None:
             if name in cur.bindings:
+                if DEBUG:
+                    if i == 0: scope = 'local scope'
+                    elif cur.parent is None: scope = 'global scope'
+                    else: scope = 'outer scope number ' + str(i)
+                    print('setting', name, 'to', value, 'in', scope)
                 cur.bindings[name] = value
                 return
-            cur = cur.parent
+            cur, i = cur.parent, i + 1
 
         # create new variable if none found
+        if DEBUG:
+            print('creating new variable', name, 'in local scope and setting to', value)
         self.bindings[name] = value
 
     def __repr__(self):
@@ -69,22 +82,21 @@ class Closure:
             raise ValueError("bad arity")
         new_scope = self.parent_scope.create_child_scope()
         for param, arg in zip(self.function_ast.params, args):
-            new_env.set(param.content, arg)
+            new_scope.set(param.content, arg, DEBUG)
         for stmt in self.function_ast.body:
             execute(stmt, new_scope)
         return None
 
-def execute_program(stmts, variables, debug=False):
+def execute_program(stmts, variables):
     for stmt in stmts:
-        execute(stmt, variables, debug=debug)
+        execute(stmt, variables)
 
-def execute(stmt, variables, debug=False):
+def execute(stmt, variables):
     if isinstance(stmt, (BinaryOp, UnaryOp, Token, Call)):
         value = evaluate(stmt, variables)
-        if debug: print('expr in expr stmt evaled to:', value)
+        if DEBUG: print('expr in expr stmt evaled to:', value)
     elif isinstance(stmt, Assignment):
         value = evaluate(stmt.expression, variables)
-        if debug: print('setting', stmt.variable.content, 'to', value)
         variables.set(stmt.variable.content, value)
     elif isinstance(stmt, If):
         value = evaluate(stmt.condition, variables)
@@ -98,18 +110,24 @@ def execute(stmt, variables, debug=False):
         while evaluate(stmt.condition, variables):
             for s in stmt.body:
                 execute(s, variables)
+    elif isinstance(stmt, Run):
+        filename = stmt.filename.content + '.calc'
+        if DEBUG: print(f'Executing {filename}...')
+        with DebugModeOff():
+            s = open(filename).read()
+            run_program(s)
+        if DEBUG: print(f'...done')
 
 def evaluate(node, variables):
     if isinstance(node, Token):
         if node.kind == 'Number':
             return node.content
         elif node.kind == 'Variable':
-            print(f'looking up {node.content}, got {variables.get(node.content)}')
             return variables.get(node.content)
     elif isinstance(node, BinaryOp):
         return binary_op_funcs[node.op.kind](evaluate(node.left, variables), evaluate(node.right, variables))
     elif isinstance(node, UnaryOp):
-        return unary_funcs[node.op.kind](evaluate(node.right, variables))
+        return unary_op_funcs[node.op.kind](evaluate(node.right, variables))
     elif isinstance(node, Function):
         return Closure(node, variables)
     elif isinstance(node, Call):
@@ -122,7 +140,25 @@ def evaluate(node, variables):
             return None
             #raise ValueError("Don't know how to evaluate: {}".format(node))
 
+class DebugModeOn:
+    def __enter__(self):
+        global DEBUG
+        DEBUG = True
+    def __exit__(self, *args):
+        global DEBUG
+        DEBUG = False
+
+class DebugModeOff:
+    def __enter__(self):
+        global DEBUG
+        DEBUG = False
+    def __exit__(self, *args):
+        global DEBUG
+        DEBUG = True
+
 def debug_repl():
+    global DEBUG
+    DEBUG = False
     import readline, os
     histfile = os.path.join(os.path.expanduser("~"), ".calchist")
     try:
@@ -135,9 +171,11 @@ def debug_repl():
 
     readline.parse_and_bind("tab: complete")
     readline.set_completer(completer)
-    variables = Scope()
+    builtin_scope = Scope()
     for name in builtin_funcs:
-        variables.set(name, builtin_funcs[name])
+        builtin_scope.set(name, builtin_funcs[name])
+    variables = builtin_scope.create_child_scope()
+    DEBUG = True
     tokens = []
     lines = 0
     prompt = '>'
@@ -175,15 +213,13 @@ def debug_exec(tokens, variables):
         print('AST of each statement:')
         for stmt in stmts:
             pprint_tree(stmt)
-        print('running program...')
-        execute_program(stmts, variables, debug=True)
-        print('global symbol table at end of program:\n', repr(variables))
+        execute_program(stmts, variables)
     except ValueError as e:
         print(e)
     except AssertionError as e:
         traceback.print_exc()
-    #except KeyError as e:
-    #    print('bad lookup of variable', e)
+    except CantFindVariable as e:
+        print(e)
 
 def run_program(source):
     """
@@ -193,7 +229,10 @@ def run_program(source):
     """
     tokens = tokenize(source)
     stmts = parse(tokens)
-    variables = {}
+    builtin_scope = Scope()
+    for name in builtin_funcs:
+        builtin_scope.set(name, builtin_funcs[name])
+    variables = builtin_scope.create_child_scope()
     execute_program(stmts, variables)
 
 if __name__ == "__main__":

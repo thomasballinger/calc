@@ -11,6 +11,7 @@ While = namedtuple('While', ['condition', 'body'])
 Call = namedtuple('Call', ['callable', 'arguments'])
 Return = namedtuple('Return', ['expression'])
 Function = namedtuple('Function', ['params', 'body'])
+Run = namedtuple('Run', ['filename'])
 
 def pprint_tree_small(node, indent=2):
     if isinstance(node, Token):
@@ -78,6 +79,8 @@ def pformat_full_tree(node, indent=0):
         s += pformat_body('body', node.body, indent=indent+6)
         s += ')'
         return s
+    elif isinstance(node, Run):
+        return f"Run(filename={node.filename})"
     else:
         raise ValueError("Can't display tree node: {}".format(node))
 
@@ -139,13 +142,20 @@ def parse_statement(tokens):
         stmt, remaining_tokens = parse_while_statement(tokens)
     elif tokens and tokens[0].kind == 'Return':
         stmt, remaining_tokens = parse_return_statement(tokens)
+    elif tokens and tokens[0].kind == 'Run':
+        stmt, remaining_tokens = parse_run_statement(tokens)
     else:
         stmt, remaining_tokens = parse_expression(tokens)
     if not remaining_tokens:
         raise ValueError("Expected semicolon after expression...")
     semi, *remaining_tokens = remaining_tokens
-    assert semi.kind == 'Semi'
+    assert semi.kind == 'Semi', semi
     return stmt, remaining_tokens
+
+def parse_run_statement(tokens):
+    run, filename, *remaining_tokens = tokens
+    assert run.kind == 'Run'
+    return Run(filename=filename), remaining_tokens
 
 def parse_assignment_statement(tokens):
     var, equals, *remaining_tokens = tokens

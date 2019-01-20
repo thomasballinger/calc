@@ -27,6 +27,7 @@ class Token(namedtuple('Token', ['kind', 'content', 'start', 'end'])):
         elif s == 'while': return Token('While', s, start, end)
         elif s == 'do': return Token('Do', s, start, end)
         elif s == 'end': return Token('End', s, start, end)
+        elif s == 'run': return Token('Run', s, start, end)
         elif s == 'return': return Token('Return', s, start, end)
         elif s.isnumeric(): return Token('Number', int(s), start, end)
         elif s[0].isalpha() and s.isalnum(): return Token('Variable', s, start, end)

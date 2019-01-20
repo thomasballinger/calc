@@ -218,6 +218,13 @@ def parse_greater_or_less(tokens):
         right, remaining_tokens = parse_plus_or_minus(remaining_tokens)
         expr = BinaryOp(expr, op, right)
 
+    elif (remaining_tokens[1:2] and remaining_tokens[0].kind == remaining_tokens[1].kind == 'Equals'):
+        eq1, eq2, *remaining_tokens = remaining_tokens
+        op = Token(kind='Equals Equals', content='==', start=eq1.start, end=eq2.end)
+        assert eq1.kind == 'Equals' and eq2.kind == 'Equals'
+        right, remaining_tokens = parse_plus_or_minus(remaining_tokens)
+        expr = BinaryOp(expr, op, right)
+
     return expr, remaining_tokens
 
 def parse_plus_or_minus(tokens):

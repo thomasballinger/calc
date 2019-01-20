@@ -20,6 +20,7 @@ binary_op_funcs = {
     'Percent': lambda x, y: x%y,
     'Greater': lambda x, y: x > y,
     'Less': lambda x, y: x < y,
+    'Equals Equals': lambda x, y: x == y,
 }
 unary_op_funcs = {
     'plus': lambda x: x,

@@ -2,6 +2,7 @@
 
 from collections import namedtuple
 import sys
+import time
 from num2words import num2words
 from tokens import Token, tokenize
 from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function, Run
@@ -114,9 +115,11 @@ def execute(stmt, variables):
         filename = stmt.filename.content + '.calc'
         if DEBUG: print(f'Executing {filename}...')
         with DebugModeOff():
+            t0 = time.time()
             s = open(filename).read()
             run_program(s)
-        if DEBUG: print(f'...done')
+            t = time.time() - t0
+        if DEBUG: print(f'...done in {t:.4f}s')
 
 def evaluate(node, variables):
     if isinstance(node, Token):

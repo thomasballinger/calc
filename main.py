@@ -5,7 +5,7 @@ import sys
 import time
 from num2words import num2words
 from tokens import Token, tokenize
-from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function, Run
+from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function, Run, PropAccess
 from typeinfer import type_infer_program
 from linter import lint_program
 from completer import completer
@@ -106,9 +106,13 @@ def execute(stmt, variables):
         value = evaluate(stmt, variables)
         if DEBUG: print('expr in expr stmt evaled to:', value)
     elif isinstance(stmt, Assignment):
-        # TODO needs to work for foo.bar = 123 as well
-        value = evaluate(stmt.expression, variables)
-        variables.set(stmt.variable.content, value)
+        value = evaluate(stmt.rhs, variables)
+        if isinstance(stmt.lhs, PropAccess):
+            left = evaluate(stmt.lhs.left, variables)
+            left.prop_set(value)
+        elif stmt.rhs.kind == 'Token':
+            variables.set(stmt.variable.content, value)
+        raise AssertionError(f'bad assignment statement: {stmt.lhs}')
     elif isinstance(stmt, If):
         value = evaluate(stmt.condition, variables)
         if value:

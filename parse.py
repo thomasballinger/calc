@@ -5,7 +5,7 @@ from tokens import Token, tokenize
 
 BinaryOp = namedtuple('BinaryOp', ['left', 'op', 'right'])
 UnaryOp = namedtuple('UnaryOp', ['op', 'right'])
-Assignment = namedtuple('Assignment', ['variable', 'expression'])
+Assignment = namedtuple('Assignment', ['lhs', 'rhs'])
 If = namedtuple('If', ['condition', 'body', 'else_body'])
 While = namedtuple('While', ['condition', 'body'])
 Call = namedtuple('Call', ['callable', 'arguments'])
@@ -37,7 +37,7 @@ def pformat_full_tree(node, indent=0):
     elif isinstance(node, BinaryOp):
         return(
                    f"BinaryOp(op={node.op},{nl}"
-            f"{space}         left={pformat_full_tree(node.left, indent+9+5)}{nl}"
+            f"{space}         left={pformat_full_tree(node.left, indent+9+5)},{nl}"
             f"{space}         right={pformat_full_tree(node.right, indent+9+6)})"
         )
     elif isinstance(node, UnaryOp):
@@ -47,8 +47,8 @@ def pformat_full_tree(node, indent=0):
         )
     elif isinstance(node, Assignment):
         return(
-                   f"Assignment(variable={node.variable},{nl}"
-            f"{space}           value={pformat_full_tree(node.expression, indent+11+6)})"
+                   f"Assignment(lhs={pformat_full_tree(node.lhs, indent+11+4)},{nl}"
+            f"{space}           value={pformat_full_tree(node.rhs, indent+11+6)})"
         )
     elif isinstance(node, Call):
         s =             f"Call(callable={node.callable},{nl}"
@@ -86,9 +86,17 @@ def pformat_full_tree(node, indent=0):
     elif isinstance(node, Return):
         return(f"Return(expression={pformat_full_tree(node.expression, indent+7+11)})")
     elif isinstance(node, PropAccess):
-        return '?'
+        return(
+                   f"PropAccess(left={pformat_full_tree(node.left, indent+11+5)},{nl}"
+            f"{space}           prop={pformat_full_tree(node.prop, indent+11+5)})"
+        )
     elif isinstance(node, Class):
-        return '?'
+        s = f"Class(name={node.name},{nl}"
+        if node.extends:
+            s += "{space}      extends={pformat_full_tree(node.extends, indent+6+8)},{nl}"
+        s += pformat_body('body', node.body, indent=indent+6)
+        s += ')'
+        return s
     else:
         raise ValueError("Can't display tree node: {}".format(node))
 
@@ -127,8 +135,8 @@ def start_end(node):
             max([op_end, right_end])
         )
     elif isinstance(node, Assignment):
-        var_start, var_end = start_end(node.variable)
-        expr_start, expr_end = start_end(node.expression)
+        var_start, var_end = start_end(node.lhs)
+        expr_start, expr_end = start_end(node.rhs)
         return (
             min([var_start, expr_start]),
             max([var_end, expr_end])
@@ -143,7 +151,7 @@ def parse(remaining_tokens):
 
 def parse_statement(tokens):
     if len(tokens) >= 2 and tokens[0].kind == 'Variable' and tokens[1].kind == 'Equals':
-        stmt, remaining_tokens = parse_assignment_statement(tokens)
+        stmt, remaining_tokens = parse_assignment_statement(tokens)  # simple case
     elif tokens and tokens[0].kind == 'If':
         stmt, remaining_tokens = parse_if_statement(tokens)
     elif tokens and tokens[0].kind == 'While':
@@ -156,6 +164,8 @@ def parse_statement(tokens):
         stmt, remaining_tokens = parse_class_statement(tokens)
     else:
         stmt, remaining_tokens = parse_expression(tokens)
+        if remaining_tokens and remaining_tokens[0].kind == 'Equals':
+            stmt, remaining_tokens = parse_assignment_statement(tokens)  # reparse!
     if not remaining_tokens:
         raise ValueError("Expected semicolon at end of statement...")
     semi, *remaining_tokens = remaining_tokens
@@ -182,11 +192,12 @@ def parse_class_statement(tokens):
     return Class(name=name, extends=base_class_name, body=statements), remaining_tokens
 
 def parse_assignment_statement(tokens):
-    var, equals, *remaining_tokens = tokens
-    assert var.kind == 'Variable'  # TODO no longer true, nearly arbitrary expressions allowed there now, PropSet or something? (any expr).prop = 123;
+    lhs, remaining_tokens = parse_expression(tokens)
+    equals, *remaining_tokens = remaining_tokens
+    assert isinstance(lhs, PropAccess) or lhs.kind == 'Variable', lhs
     assert equals.kind == 'Equals'
-    expression, remaining_tokens = parse_expression(remaining_tokens)
-    return Assignment(variable=var, expression=expression), remaining_tokens
+    rhs, remaining_tokens = parse_expression(remaining_tokens)
+    return Assignment(lhs=lhs, rhs=rhs), remaining_tokens
 
 def parse_if_statement(tokens):
     """

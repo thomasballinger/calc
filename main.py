@@ -5,7 +5,7 @@ import sys
 import time
 from num2words import num2words
 from tokens import Token, tokenize
-from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function, Run, Return
+from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function, Run
 from typeinfer import type_infer_program
 from linter import lint_program
 from completer import completer
@@ -31,6 +31,10 @@ builtin_funcs = {
     'string': num2words,
     'length': len,
 }
+
+class CalcReturnException(Exception):
+    def __init__(self, value):
+        self.value = value
 
 class CantFindVariable(KeyError): pass
 
@@ -123,7 +127,8 @@ def execute(stmt, variables):
             t = time.time() - t0
         if DEBUG: print(f'...done in {t:.5f}s')
     elif isinstance(stmt, Return):
-        raise ValueError("Don't know how to execute a return statement")
+        value = evaluate(stmt.expression, variables)
+        raise CalcReturnException(value)
 
 def evaluate(node, variables):
     if isinstance(node, Token):
@@ -145,8 +150,12 @@ def evaluate(node, variables):
         if type(f) == type(lambda: None):
             return f(*args)
         else:
-            f.execute(args)
-            return None
+            try:
+                f.execute(args)
+            except CalcReturnException as e:
+                return e.value
+            else:
+                return None
             #raise ValueError("Don't know how to evaluate: {}".format(node))
 
 class DebugModeOn:

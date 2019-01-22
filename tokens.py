@@ -22,6 +22,7 @@ class Token(namedtuple('Token', ['kind', 'content', 'start', 'end'])):
         elif s == '<': return Token('Less', s, start, end)
         elif s == ';': return Token('Semi', s, start, end)
         elif s == ',': return Token('Comma', s, start, end)
+        elif s == '.': return Token('Dot', s, start, end)
         elif s == 'if': return Token('If', s, start, end)
         elif s == 'then': return Token('Then', s, start, end)
         elif s == 'else': return Token('Else', s, start, end)
@@ -30,6 +31,8 @@ class Token(namedtuple('Token', ['kind', 'content', 'start', 'end'])):
         elif s == 'end': return Token('End', s, start, end)
         elif s == 'run': return Token('Run', s, start, end)
         elif s == 'return': return Token('Return', s, start, end)
+        elif s == 'class': return Token('Class', s, start, end)
+        elif s == 'extends': return Token('Extends', s, start, end)
         elif s[0] == '"' and s[-1] == '"': return Token('String', s[1:-1], start, end)
         elif s.isnumeric(): return Token('Number', int(s), start, end)
         elif s[0].isalpha() and s.isalnum(): return Token('Variable', s, start, end)
@@ -68,7 +71,7 @@ def tokenize(string):
                 tokens.append(Token.from_string(token_string, i-len(token_string)))
                 token_string = ''
             token_string = ''
-        elif c in ('+', '-', '*', '/', '%', '(', ')', '>', '<', '=', ';', ','):
+        elif c in ('+', '-', '*', '/', '%', '(', ')', '>', '<', '=', ';', ',', '.'):
             if token_string:
                 tokens.append(Token.from_string(token_string, i-len(token_string)))
                 token_string = ''

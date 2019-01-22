@@ -11,6 +11,8 @@ While = namedtuple('While', ['condition', 'body'])
 Call = namedtuple('Call', ['callable', 'arguments'])
 Return = namedtuple('Return', ['expression'])
 Function = namedtuple('Function', ['params', 'body'])
+Class = namedtuple('Class', ['name', 'extends', 'body'])
+PropAccess = namedtuple('PropAccess', ['left', 'prop'])
 Run = namedtuple('Run', ['filename'])
 
 def pprint_tree_small(node, indent=2):
@@ -82,8 +84,11 @@ def pformat_full_tree(node, indent=0):
     elif isinstance(node, Run):
         return f"Run(filename={node.filename})"
     elif isinstance(node, Return):
-        return(   f"Return(expression={pformat_full_tree(node.expression, indent+7+11)})"
-        )
+        return(f"Return(expression={pformat_full_tree(node.expression, indent+7+11)})")
+    elif isinstance(node, PropAccess):
+        return '?'
+    elif isinstance(node, Class):
+        return '?'
     else:
         raise ValueError("Can't display tree node: {}".format(node))
 
@@ -147,10 +152,12 @@ def parse_statement(tokens):
         stmt, remaining_tokens = parse_return_statement(tokens)
     elif tokens and tokens[0].kind == 'Run':
         stmt, remaining_tokens = parse_run_statement(tokens)
+    elif tokens and tokens[0].kind == 'Class':
+        stmt, remaining_tokens = parse_class_statement(tokens)
     else:
         stmt, remaining_tokens = parse_expression(tokens)
     if not remaining_tokens:
-        raise ValueError("Expected semicolon after expression...")
+        raise ValueError("Expected semicolon at end of statement...")
     semi, *remaining_tokens = remaining_tokens
     assert semi.kind == 'Semi', semi
     return stmt, remaining_tokens
@@ -160,9 +167,23 @@ def parse_run_statement(tokens):
     assert run.kind == 'Run'
     return Run(filename=filename), remaining_tokens
 
+def parse_class_statement(tokens):
+    class_, name, *remaining_tokens = tokens
+    assert class_.kind == 'Class'
+    base_class_name = None
+    statements = []
+    if remaining_tokens[0].kind == 'Extends':
+        extends, base_class_name, *remaining_tokens = remaining_tokens
+        assert base_class_name.kind == 'Variable'
+    while remaining_tokens[0].kind != 'End':
+        stmt, remaining_tokens = parse_statement(remaining_tokens)
+        statements.append(stmt)
+    end, *remaining_tokens = remaining_tokens
+    return Class(name=name, extends=base_class_name, body=statements), remaining_tokens
+
 def parse_assignment_statement(tokens):
     var, equals, *remaining_tokens = tokens
-    assert var.kind == 'Variable'
+    assert var.kind == 'Variable'  # TODO no longer true, nearly arbitrary expressions allowed there now, PropSet or something? (any expr).prop = 123;
     assert equals.kind == 'Equals'
     expression, remaining_tokens = parse_expression(remaining_tokens)
     return Assignment(variable=var, expression=expression), remaining_tokens
@@ -252,35 +273,41 @@ def parse_multiply_or_divide(tokens):
 
 def parse_unary_op(tokens):
     op = None
-    if tokens[0] in ('Plus', 'Minus'):
+    if tokens[0].kind in ('Plus', 'Minus'):
         op, *tokens = tokens
         expr, tokens = parse_unary_op(tokens)
         return tokens, UnaryOp(op=op, right=expr)
-    return parse_call(tokens)
+    return parse_call_or_prop_access(tokens)
 
-def parse_call(tokens):
+def parse_call_or_prop_access(tokens):
     """
-    >>> parse_call(tokenize('a()'))[0]
+    >>> parse_call_or_prop_access(tokenize('a()'))[0]
     Call(callable=Token(kind='Variable', content='a'), arguments=[])
-    >>> parse_call(tokenize('a()(1)'))[0]
+    >>> parse_call_or_prop_access(tokenize('a()(1)'))[0]
     Call(callable=Call(callable=Token(kind='Variable', content='a'), arguments=[]), arguments=[Token(kind='Number', content=1)])
     """
     expr, remaining_tokens = parse_primary(tokens)
-    while remaining_tokens and remaining_tokens[0].kind == 'Left Paren':
-        left_paren, *remaining_tokens = remaining_tokens
-        assert left_paren.kind == 'Left Paren'
-        arguments = []
-        if remaining_tokens[0].kind != 'Right Paren':
-            argument, remaining_tokens = parse_expression(remaining_tokens)
-            arguments.append(argument)
-            while remaining_tokens[0].kind != 'Right Paren':
-                comma, *remaining_tokens = remaining_tokens
-                assert comma.kind == 'Comma'
+    while remaining_tokens and remaining_tokens[0].kind in ('Left Paren', 'Dot'):
+        tok, *remaining_tokens = remaining_tokens
+        if tok.kind == 'Left Paren':
+            arguments = []
+            if remaining_tokens[0].kind != 'Right Paren':
                 argument, remaining_tokens = parse_expression(remaining_tokens)
                 arguments.append(argument)
-        right_paren, *remaining_tokens = remaining_tokens
-        assert right_paren.kind == 'Right Paren'
-        expr = Call(callable=expr, arguments=arguments)
+                while remaining_tokens[0].kind != 'Right Paren':
+                    comma, *remaining_tokens = remaining_tokens
+                    assert comma.kind == 'Comma'
+                    argument, remaining_tokens = parse_expression(remaining_tokens)
+                    arguments.append(argument)
+            right_paren, *remaining_tokens = remaining_tokens
+            assert right_paren.kind == 'Right Paren'
+            expr = Call(callable=expr, arguments=arguments)
+        elif tok.kind == 'Dot':
+            prop, *remaining_tokens = remaining_tokens
+            assert prop.kind == "Variable", prop
+            expr = PropAccess(expr, prop)
+        else:
+            raise AssertionError("unreachable")
     return expr, remaining_tokens
 
 def parse_primary(tokens):

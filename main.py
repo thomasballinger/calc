@@ -94,6 +94,9 @@ class Closure:
             execute(stmt, new_scope)
         return None
 
+class Class:
+    pass
+
 def execute_program(stmts, variables):
     for stmt in stmts:
         execute(stmt, variables)
@@ -103,6 +106,7 @@ def execute(stmt, variables):
         value = evaluate(stmt, variables)
         if DEBUG: print('expr in expr stmt evaled to:', value)
     elif isinstance(stmt, Assignment):
+        # TODO needs to work for foo.bar = 123 as well
         value = evaluate(stmt.expression, variables)
         variables.set(stmt.variable.content, value)
     elif isinstance(stmt, If):
@@ -144,6 +148,11 @@ def evaluate(node, variables):
         return unary_op_funcs[node.op.kind](evaluate(node.right, variables))
     elif isinstance(node, Function):
         return Closure(node, variables)
+    elif isinstance(node, Class):
+        raise ValueError("Don't know how to evaluate Class")
+        return Class()
+    elif isinstance(node, PropAccess):
+        raise ValueError("Don't know how to evaluate PropAccess")
     elif isinstance(node, Call):
         f = evaluate(node.callable, variables)
         args = [evaluate(expr, variables) for expr in node.arguments]

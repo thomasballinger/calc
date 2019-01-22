@@ -1,0 +1,13 @@
+foo = (n) =>
+  if n == 1 then
+    print("returning one");
+    return "one";
+  else
+    print("returning two");
+    return "two";
+  end;
+  return "never";
+end;
+
+print(foo(1));
+print(foo(2));

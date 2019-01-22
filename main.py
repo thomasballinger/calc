@@ -5,7 +5,7 @@ import sys
 import time
 from num2words import num2words
 from tokens import Token, tokenize
-from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function, Run, PropAccess
+from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, Call, Return, Function, Run, PropAccess, Class
 from typeinfer import type_infer_program
 from linter import lint_program
 from completer import completer
@@ -95,7 +95,18 @@ class Closure:
         return None
 
 class Class:
-    pass
+    def prop_access(self, name):
+        raise ValueError("Don't know how to get props on class")
+    def prop_assign(self, name, value):
+        raise ValueError("Don't know how to assign to class")
+    def create_instance(self):
+        raise ValueError("Don't know how to create instance")
+
+class Instance:
+    def prop_access(self, name):
+        raise ValueError("Don't know how to get prop on instance")
+    def prop_assign(self, name, value):
+        raise ValueError("Don't know how to assign to instance")
 
 def execute_program(stmts, variables):
     for stmt in stmts:
@@ -110,9 +121,10 @@ def execute(stmt, variables):
         if isinstance(stmt.lhs, PropAccess):
             left = evaluate(stmt.lhs.left, variables)
             left.prop_set(value)
-        elif stmt.rhs.kind == 'Token':
-            variables.set(stmt.variable.content, value)
-        raise AssertionError(f'bad assignment statement: {stmt.lhs}')
+        elif stmt.lhs.kind == 'Variable':
+            variables.set(stmt.lhs.content, value)
+        else:
+            raise AssertionError(f'bad assignment statement: {stmt.lhs}')
     elif isinstance(stmt, If):
         value = evaluate(stmt.condition, variables)
         if value:
@@ -137,6 +149,9 @@ def execute(stmt, variables):
     elif isinstance(stmt, Return):
         value = evaluate(stmt.expression, variables)
         raise CalcReturnException(value)
+    elif isinstance(node, Class):
+        raise ValueError("Don't know how to execute Class")
+        return Class()
 
 def evaluate(node, variables):
     if isinstance(node, Token):
@@ -152,9 +167,6 @@ def evaluate(node, variables):
         return unary_op_funcs[node.op.kind](evaluate(node.right, variables))
     elif isinstance(node, Function):
         return Closure(node, variables)
-    elif isinstance(node, Class):
-        raise ValueError("Don't know how to evaluate Class")
-        return Class()
     elif isinstance(node, PropAccess):
         raise ValueError("Don't know how to evaluate PropAccess")
     elif isinstance(node, Call):
@@ -162,14 +174,17 @@ def evaluate(node, variables):
         args = [evaluate(expr, variables) for expr in node.arguments]
         if type(f) == type(lambda: None):
             return f(*args)
-        else:
+        elif isinstance(f, Closure):
             try:
                 f.execute(args)
             except CalcReturnException as e:
                 return e.value
             else:
                 return None
-            #raise ValueError("Don't know how to evaluate: {}".format(node))
+        elif isinstance(f, Class):
+            raise ValueError("Don't know how to call a class")
+        else:
+            raise ValueError("Don't know how to evaluate: {}".format(node))
 
 class DebugModeOn:
     def __enter__(self):

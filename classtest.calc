@@ -1,0 +1,13 @@
+class Foo
+  a = 1 + 1;
+  b = (this)=>
+    print("called on instance");
+    this.hasbeen = "run";
+    print(this);
+  end;
+end;
+
+class Bar extends Foo
+  a = 3;
+end;
+

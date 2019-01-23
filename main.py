@@ -94,7 +94,11 @@ class Closure:
             execute(stmt, new_scope)
         return None
 
-class Class:
+class ClassObj:
+    def __init__(self, name, scope, extends=None):
+        self.name = name
+        self.scope = scope
+        self.extends = extends
     def prop_access(self, name):
         raise ValueError("Don't know how to get props on class")
     def prop_assign(self, name, value):
@@ -149,9 +153,13 @@ def execute(stmt, variables):
     elif isinstance(stmt, Return):
         value = evaluate(stmt.expression, variables)
         raise CalcReturnException(value)
-    elif isinstance(node, Class):
-        raise ValueError("Don't know how to execute Class")
-        return Class()
+    elif isinstance(stmt, Class):
+        cls_variables = variables.create_child_scope()
+        cls = ClassObj(stmt.name, cls_variables, stmt.extends)
+        for s in stmt.body:
+            execute(s, cls_variables)
+        print('seting', stmt.name, ' to', cls)
+        variables.set(stmt.name.content, cls)
 
 def evaluate(node, variables):
     if isinstance(node, Token):
@@ -182,6 +190,7 @@ def evaluate(node, variables):
             else:
                 return None
         elif isinstance(f, Class):
+            return f.create_instance()
             raise ValueError("Don't know how to call a class")
         else:
             raise ValueError("Don't know how to evaluate: {}".format(node))

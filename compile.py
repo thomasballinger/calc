@@ -5,7 +5,7 @@ import sys
 import opcode
 import os
 
-class Code:
+class MutableCode:
     def __init__(self):
         self.opcodes = []  # the compiled code!
         self.stacksize = 100  # max anticipated size of the value stack
@@ -38,12 +38,12 @@ class Code:
 
     def __repr__(self):
         nl = '\n'
-        opcodespace = len('Code(opcodes=[') * ' '
-        closebracketspace = (len('Code(opcodes=[') - 1) * ' '
-        argspace = len('Code(') * ' '
+        opcodespace = len('MutableCode(opcodes=[') * ' '
+        closebracketspace = (len('MutableCode(opcodes=[') - 1) * ' '
+        argspace = len('MutableCode(') * ' '
         instructions = f',\n{opcodespace}'.join(f"{repr(both)}"
                                                 for both in self.opcodes)
-        s = f"Code(opcodes=[{nl}{opcodespace}{instructions}{nl}{closebracketspace}]"
+        s = f"MutableCode(opcodes=[{nl}{opcodespace}{instructions}{nl}{closebracketspace}]"
         if self.constants:
             s += f",{nl}constants={self.constants}"
         s += ')'
@@ -60,28 +60,34 @@ TOKEN_TO_BINOP = {
 def compile_expression(node, code=None):
     """
     >>> compile_expression(parse_expression(tokenize('1'))[0])
-    Code(opcodes=[
-                  ('LOAD_CONST', 0)
-                 ],
+    MutableCode(opcodes=[
+                         ('LOAD_CONST', 0)
+                        ],
     constants=[1])
     >>> compile_expression(parse_expression(tokenize('1 + 2'))[0])
-    Code(opcodes=[
-                  ('LOAD_CONST', 0),
-                  ('LOAD_CONST', 1),
-                  'BINARY_ADD'
-                 ],
+    MutableCode(opcodes=[
+                         ('LOAD_CONST', 0),
+                         ('LOAD_CONST', 1),
+                         'BINARY_ADD'
+                        ],
     constants=[1, 2])
     """
-    if code is None: code = Code()
+    if code is None: code = MutableCode()
     if isinstance(node, Token):
         if node.kind == 'Number':
             n = code.register_constant(node.content)
             code.add_op('LOAD_CONST', n)
             return code
         elif node.kind == 'Variable':
-            raise ValueError("Can't compile variable access")
+            # TODO add semantic analysis phase because Variable isn't specific enough
+            # global variable
+            n = code.register_name(node.content)
+            code.add_op('LOAD_GLOBAL', n)
+            return code
         elif node.kind == 'String':
-            return node.content
+            n = code.register_constant(node.content)
+            code.add_op('LOAD_CONST', n)
+            return code
 
     elif isinstance(node, BinaryOp):
         compile_expression(node.left, code)
@@ -90,31 +96,58 @@ def compile_expression(node, code=None):
         return code
     elif isinstance(node, UnaryOp):
         raise ValueError
+    elif isinstance(node, Call):
+        compile_expression(node.callable, code)
+        for arg in node.arguments:
+            compile_expression(arg, code)
+        code.add_op('CALL_FUNCTION', len(node.arguments))
+        return code
     raise ValueError(f"Don't know what this is: {node}")
 
 
 def compile_statement(stmt, code=None):
-    if code is None: code = Code()
+    if code is None: code = MutableCode()
     if isinstance(stmt, (BinaryOp, UnaryOp, Token, Call)):
-        code = compile_expression(stmt)
+        code = compile_expression(stmt, code)
         code.add_op('POP_TOP')
         return code
     else:
         raise ValueError("don't know how to compile stmt of type {type(stmt)}")
 
 def compile_module(stmts):
-    code = Code()
+    code = MutableCode()
     for stmt in stmts:
-        compile_statement(stmt)
+        compile_statement(stmt, code)
+    n = code.register_constant(None)
+    code.add_op('LOAD_CONST', n)
+    code.add_op('RETURN_VALUE')
+    return code
 
+def to_python_func(stmts):
+    code = compile_module(stmts)
+    codestring = opcode_strings_to_codestring(code.opcodes)
+    codeobj = calc_module_code_to_pyc_contents(
+        codestring=codestring,
+        stacksize=100,
+        names=tuple(code.names),
+        constants=tuple(code.constants),
+        filename='madeup'
+    )
+    Function = type(lambda: None)
+    f = Function(codeobj, {'print': print})
+    return f
 
-"""
-    code(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring,
-          constants, names, varnames, filename, name, firstlineno,
-          lnotab[, freevars[, cellvars]])
+def test_full(s):
+    """
+    >>> f = test_full('print(1 + 1);')
+    >>> f()
+    2
+    """
+    tokens = tokenize(s)
+    statements = parse(tokens)
+    f = to_python_func(statements)
+    return f
 
-    Create a code object.  Not for the faint of heart.
-"""
 
 def opcode_strings_to_codestring(opcodes):
     r"""
@@ -134,7 +167,7 @@ def opcode_strings_to_codestring(opcodes):
             if n > opcode.HAVE_ARGUMENT:
                 raise ValueError(f"Opcode {op} needs argument")
         n = opcode.opmap[op]
-        codestring += (chr(n).encode() + chr(arg).encode())
+        codestring += bytes([n, arg])
     return codestring
 
 

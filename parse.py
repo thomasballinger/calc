@@ -14,17 +14,7 @@ Function = namedtuple('Function', ['params', 'body'])
 Class = namedtuple('Class', ['name', 'extends', 'body'])
 PropAccess = namedtuple('PropAccess', ['left', 'prop'])
 Run = namedtuple('Run', ['filename'])
-
-def pprint_tree_small(node, indent=2):
-    if isinstance(node, Token):
-        print(' '*indent + str(node.content))
-    elif isinstance(node, BinaryOp):
-        print(' '*indent + node.op.content)
-        pprint_tree(node.left, indent + 2)
-        pprint_tree(node.right, indent + 2)
-    elif isinstance(node, UnaryOp):
-        print(' '*indent + node.op.content)
-        pprint_tree(node.right, indent + 2)
+Compile = namedtuple('Compile', ['filename'])
 
 def pprint_tree(node):
     print(pformat_full_tree(node))
@@ -83,6 +73,8 @@ def pformat_full_tree(node, indent=0):
         return s
     elif isinstance(node, Run):
         return f"Run(filename={node.filename})"
+    elif isinstance(node, Compile):
+        return f"Compile(filename={node.filename})"
     elif isinstance(node, Return):
         return(f"Return(expression={pformat_full_tree(node.expression, indent+7+11)})")
     elif isinstance(node, PropAccess):
@@ -160,6 +152,8 @@ def parse_statement(tokens):
         stmt, remaining_tokens = parse_return_statement(tokens)
     elif tokens and tokens[0].kind == 'Run':
         stmt, remaining_tokens = parse_run_statement(tokens)
+    elif tokens and tokens[0].kind == 'Compile':
+        stmt, remaining_tokens = parse_compile_statement(tokens)
     elif tokens and tokens[0].kind == 'Class':
         stmt, remaining_tokens = parse_class_statement(tokens)
     else:
@@ -176,6 +170,11 @@ def parse_run_statement(tokens):
     run, filename, *remaining_tokens = tokens
     assert run.kind == 'Run'
     return Run(filename=filename), remaining_tokens
+
+def parse_compile_statement(tokens):
+    run, filename, *remaining_tokens = tokens
+    assert run.kind == 'Compile'
+    return Compile(filename=filename), remaining_tokens
 
 def parse_class_statement(tokens):
     class_, name, *remaining_tokens = tokens
@@ -224,7 +223,7 @@ def parse_if_statement(tokens):
 
 def parse_while_statement(tokens):
     while_, *remaining_tokens = tokens
-    assert while_.kind == 'While', if_.kind
+    assert while_.kind == 'While', while_.kind
     condition, remaining_tokens = parse_expression(remaining_tokens)
     do, *remaining_tokens = remaining_tokens
     assert do.kind == 'Do'

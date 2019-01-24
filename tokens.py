@@ -30,6 +30,7 @@ class Token(namedtuple('Token', ['kind', 'content', 'start', 'end'])):
         elif s == 'do': return Token('Do', s, start, end)
         elif s == 'end': return Token('End', s, start, end)
         elif s == 'run': return Token('Run', s, start, end)
+        elif s == 'compile': return Token('Run', s, start, end)
         elif s == 'return': return Token('Return', s, start, end)
         elif s == 'class': return Token('Class', s, start, end)
         elif s == 'extends': return Token('Extends', s, start, end)

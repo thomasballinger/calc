@@ -36,6 +36,18 @@ class MutableCode:
 
         self.opcodes.append(op if arg is None else (op, arg))
 
+    def to_code_object(self, source_filename, name):
+        codestring = opcode_strings_to_codestring(self.opcodes)
+        codeobj = module_code_to_pyc_contents(
+            codestring=codestring,
+            stacksize=100,
+            names=tuple(self.names),
+            constants=tuple(self.constants),
+            filename=source_filename,
+            name=name
+        )
+        return codeobj
+
     def __repr__(self):
         nl = '\n'
         opcodespace = len('MutableCode(opcodes=[') * ' '
@@ -57,14 +69,14 @@ TOKEN_TO_BINOP = {
     '/': 'BINARY_TRUE_DIVIDE',
 }
 
-def compile_single_expression(node, code=None):
+def compile_expression_from_source(source):
     """
-    >>> compile_single_expression(parse_expression(tokenize('1'))[0])
+    >>> compile_expression_from_source'1')
     MutableCode(opcodes=[
                          ('LOAD_CONST', 0)
                         ],
     constants=[1])
-    >>> compile_single_expression(parse_expression(tokenize('1 + 2'))[0])
+    >>> compile_expression_from_source'1 + 2')
     MutableCode(opcodes=[
                          ('LOAD_CONST', 0),
                          ('LOAD_CONST', 1),
@@ -72,7 +84,10 @@ def compile_single_expression(node, code=None):
                         ],
     constants=[1, 2])
     """
-    if code is None: code = MutableCode()
+    tokens = tokenize(source)
+    node, remaining_tokens = parse_expression(tokens)[0]
+    assert not remaining_tokens, f'leftover tokens: {remaining_tokens}'
+    code = MutableCode()
     return compile_expression(node, code)
 
 def compile_expression(node, code):
@@ -100,7 +115,10 @@ def compile_expression(node, code):
     elif isinstance(node, UnaryOp):
         raise ValueError
     elif isinstance(node, Function):
-        raise ValueError
+        func_code = compile_function(node)
+        n = code.register_const(func_code)
+        code.add_op('LOAD_CONST', n)
+        return code
     elif isinstance(node, Call):
         compile_expression(node.callable, code)
         for arg in node.arguments:
@@ -140,28 +158,28 @@ def compile_module(stmts):
     code.add_op('RETURN_VALUE')
     return code
 
-def calc_ast_to_python_code_object(stmts, source_filename):
-    code = compile_module(stmts)
-    codestring = opcode_strings_to_codestring(code.opcodes)
-    codeobj = module_code_to_pyc_contents(
-        codestring=codestring,
-        stacksize=100,
-        names=tuple(code.names),
-        constants=tuple(code.constants),
-        filename=source_filename,
-    )
-    return codeobj
+def compile_function(params, stmts):
+    code = MutableCode()
+    for stmt in stmts:
+        compile_statement(stmt, code)
+    n = code.register_constant(None)
+    code.add_op('LOAD_CONST', n)
+    code.add_op('RETURN_VALUE')
+    return code
+
+def calc_ast_to_python_code_object(stmts, source_filename='fakefile', name='calc_code'):
+    return compile_module(stmts).to_code_object(source_filename, name)
 
 def calc_ast_to_python_func(stmts):
-    codeobj = calc_ast_to_python_code_object(stmts, 'madeup')
-    Function = type(lambda: None)
-    f = Function(codeobj, {'print': print})
+    codeobj = calc_ast_to_python_code_object(stmts, 'fakefile', 'calc_function')
+    PyFunction = type(lambda: None)
+    f = PyFunction(codeobj, {'print': print})
     return f
 
 def calc_source_to_python_code_object(s):
     tokens = tokenize(s)
-    statements = parse(tokens)
-    codeobj = calc_ast_to_python_code_object(statements)
+    stmts = parse(tokens)
+    codeobj = calc_ast_to_python_code_object(stmts, 'fakefile', 'calc_code')
 
 def calc_source_to_python_func(s):
     """
@@ -170,10 +188,8 @@ def calc_source_to_python_func(s):
     2
     """
     tokens = tokenize(s)
-    statements = parse(tokens)
-    f = calc_ast_to_python_func(statements)
-    return f
-
+    stmts = parse(tokens)
+    return calc_ast_to_python_func(stmts)
 
 def opcode_strings_to_codestring(opcodes):
     r"""
@@ -197,12 +213,14 @@ def opcode_strings_to_codestring(opcodes):
     return codestring
 
 
-def module_code_to_pyc_contents(codestring, stacksize, names, constants, filename):
+def module_code_to_pyc_contents(codestring, stacksize, names, constants, filename='fake_filename', name='fake_name'):
     """
     codestring: the compiled code!
     stacksize: max anticipated size of the value stack
     names: global variables or attribute calls
-    constants: # All the numbers, strings, booleans we'll need, always including None
+    constants: All the numbers, strings, booleans we'll need, always including None
+    filename: source code filename
+    name: function or module name
     """
     argcount = 0  # modules have no args
     kwonlyargcount = 0  # modules have no args
@@ -210,7 +228,6 @@ def module_code_to_pyc_contents(codestring, stacksize, names, constants, filenam
     varnames = ()  # paremeters, then local variables
     freevars = ()  #  (none for modules)
     callvars = ()  # local variables referenced by nested functions (none for modules)
-    fake_name = 'madeup'
     fake_firstlineno = 1
 
     OPTIMIZED = NEWLOCALS = VARARGS = VARKEYWORDS = NESTED = GENERATOR = NOFREE = COROUTINE = ITERABLE_COROUTINE = False
@@ -231,7 +248,7 @@ def module_code_to_pyc_contents(codestring, stacksize, names, constants, filenam
 
     code = type((lambda: None).__code__)
     c = code(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring,
-          constants, names, varnames, filename, fake_name, fake_firstlineno, fake_lnotab)
+          constants, names, varnames, filename, name, fake_firstlineno, fake_lnotab)
     return c
 
 if __name__ == '__main__':

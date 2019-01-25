@@ -24,6 +24,7 @@ class MutableCode:
         self.name = name or 'fakename'
         self.firstlineno = firstlineno
         self.last_lineno = None
+        self.params = params
 
         for cellvar in symbol_table.cell_vars:
             self.cellvars.append(cellvar)
@@ -134,12 +135,16 @@ class MutableCode:
         codestring = opcode_strings_to_codestring(self.opcodes)
         firstlineno, lnotab = self.build_firstlineno_lnotab()
         codeobj = module_code_to_pyc_contents(
+            argcount=len(self.params),
+            nlocals=len(self.varnames),
             codestring=codestring,
-            stacksize=100,
-            names=tuple(self.names),
             constants=tuple(self.constants),
+            names=tuple(self.names),
+            varnames=tuple(self.varnames),
             firstlineno=firstlineno,
             lnotab=lnotab,
+            freevars=tuple(self.freevars),
+            cellvars=tuple(self.cellvars),
             filename=self.filename,
             name=self.name,
         )
@@ -345,22 +350,20 @@ def opcode_strings_to_codestring(opcodes):
         codestring += bytes([n, arg])
     return codestring
 
-
-def module_code_to_pyc_contents(codestring, stacksize, names, constants, firstlineno, lnotab, filename, name):
+def module_code_to_pyc_contents(argcount, nlocals, codestring, constants, names, varnames, firstlineno, lnotab, freevars, cellvars, filename, name):
     """
     codestring: the compiled code!
-    stacksize: max anticipated size of the value stack
     names: global variables or attribute calls
     constants: All the numbers, strings, booleans we'll need, always including None
+    varnames: parameters, then local variables
     filename: source code filename
     name: function or module name
     """
-    argcount = 0  # modules have no args
-    kwonlyargcount = 0  # modules have no args
+    kwonlyargcount = 0  # calc functions have no kwarg-only args
     nlocals = 0  # modules just have global variables, no locals
-    varnames = ()  # paremeters, then local variables
     freevars = ()  #  (none for modules)
     callvars = ()  # local variables referenced by nested functions (none for modules)
+    fake_stacksize = 100
 
     OPTIMIZED = NEWLOCALS = VARARGS = VARKEYWORDS = NESTED = GENERATOR = NOFREE = COROUTINE = ITERABLE_COROUTINE = False
 
@@ -377,8 +380,8 @@ def module_code_to_pyc_contents(codestring, stacksize, names, constants, firstli
     ])
 
     code = type((lambda: None).__code__)
-    c = code(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring,
-          constants, names, varnames, filename, name, firstlineno, lnotab)
+    c = code(argcount, kwonlyargcount, nlocals, fake_stacksize, flags, codestring,
+          constants, names, varnames, filename, name, firstlineno, lnotab, freevars, cellvars)
     return c
 
 if __name__ == '__main__':

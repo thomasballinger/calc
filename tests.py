@@ -49,6 +49,7 @@ class TestCompiledPythonOutputMatches(unittest.TestCase):
                 c = 2;
                 foo = (a, b) =>
                   print(c);
+                  print(a);
                   bar = (d) =>
                     print(a);
                     print(e);
@@ -62,6 +63,7 @@ class TestCompiledPythonOutputMatches(unittest.TestCase):
                 c = 2;
                 def foo(a, b):
                     print(c)
+                    print(a);
                     def bar(d):
                         print(a)
                         print(e)

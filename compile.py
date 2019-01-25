@@ -27,7 +27,7 @@ class MutableCode:
     def add_op(self, op, arg=None):
         if op not in opcode.opmap:
             raise ValueError(f"Unknown Op: {op}")
-        if opcode.opmap[op] > opcode.HAVE_ARGUMENT:
+        if opcode.opmap[op] >= opcode.HAVE_ARGUMENT:
             if arg is None:
                 raise ValueError(f"Opcode {op} needs argument")
         else:
@@ -57,14 +57,14 @@ TOKEN_TO_BINOP = {
     '/': 'BINARY_TRUE_DIVIDE',
 }
 
-def compile_expression(node, code=None):
+def compile_single_expression(node, code=None):
     """
-    >>> compile_expression(parse_expression(tokenize('1'))[0])
+    >>> compile_single_expression(parse_expression(tokenize('1'))[0])
     MutableCode(opcodes=[
                          ('LOAD_CONST', 0)
                         ],
     constants=[1])
-    >>> compile_expression(parse_expression(tokenize('1 + 2'))[0])
+    >>> compile_single_expression(parse_expression(tokenize('1 + 2'))[0])
     MutableCode(opcodes=[
                          ('LOAD_CONST', 0),
                          ('LOAD_CONST', 1),
@@ -73,6 +73,9 @@ def compile_expression(node, code=None):
     constants=[1, 2])
     """
     if code is None: code = MutableCode()
+    return compile_expression(node, code)
+
+def compile_expression(node, code):
     if isinstance(node, Token):
         if node.kind == 'Number':
             n = code.register_constant(node.content)
@@ -96,6 +99,8 @@ def compile_expression(node, code=None):
         return code
     elif isinstance(node, UnaryOp):
         raise ValueError
+    elif isinstance(node, Function):
+        raise ValueError
     elif isinstance(node, Call):
         compile_expression(node.callable, code)
         for arg in node.arguments:
@@ -105,12 +110,24 @@ def compile_expression(node, code=None):
     raise ValueError(f"Don't know what this is: {node}")
 
 
-def compile_statement(stmt, code=None):
-    if code is None: code = MutableCode()
+def compile_statement(stmt, code):
     if isinstance(stmt, (BinaryOp, UnaryOp, Token, Call)):
         code = compile_expression(stmt, code)
         code.add_op('POP_TOP')
         return code
+    elif isinstance(stmt, Assignment):
+        code = compile_expression(stmt.rhs, code)
+        n = code.register_name(stmt.lhs.content)
+        code.add_op('STORE_NAME', n)
+        return code
+    elif isinstance(stmt, If):
+        raise ValueError("don't know how to compile stmt of type {type(stmt)}")
+    elif isinstance(stmt, While):
+        raise ValueError("don't know how to compile stmt of type {type(stmt)}")
+    elif isinstance(stmt, Run):
+        raise ValueError("don't know how to compile stmt of type {type(stmt)}")
+    elif isinstance(stmt, Return):
+        raise ValueError("don't know how to compile stmt of type {type(stmt)}")
     else:
         raise ValueError("don't know how to compile stmt of type {type(stmt)}")
 
@@ -123,29 +140,38 @@ def compile_module(stmts):
     code.add_op('RETURN_VALUE')
     return code
 
-def to_python_func(stmts):
+def calc_ast_to_python_code_object(stmts, source_filename):
     code = compile_module(stmts)
     codestring = opcode_strings_to_codestring(code.opcodes)
-    codeobj = calc_module_code_to_pyc_contents(
+    codeobj = module_code_to_pyc_contents(
         codestring=codestring,
         stacksize=100,
         names=tuple(code.names),
         constants=tuple(code.constants),
-        filename='madeup'
+        filename=source_filename,
     )
+    return codeobj
+
+def calc_ast_to_python_func(stmts):
+    codeobj = calc_ast_to_python_code_object(stmts, 'madeup')
     Function = type(lambda: None)
     f = Function(codeobj, {'print': print})
     return f
 
-def test_full(s):
+def calc_source_to_python_code_object(s):
+    tokens = tokenize(s)
+    statements = parse(tokens)
+    codeobj = calc_ast_to_python_code_object(statements)
+
+def calc_source_to_python_func(s):
     """
-    >>> f = test_full('print(1 + 1);')
+    >>> f = calc_source_to_python_func('print(1 + 1);')
     >>> f()
     2
     """
     tokens = tokenize(s)
     statements = parse(tokens)
-    f = to_python_func(statements)
+    f = calc_ast_to_python_func(statements)
     return f
 
 
@@ -171,7 +197,7 @@ def opcode_strings_to_codestring(opcodes):
     return codestring
 
 
-def calc_module_code_to_pyc_contents(codestring, stacksize, names, constants, filename):
+def module_code_to_pyc_contents(codestring, stacksize, names, constants, filename):
     """
     codestring: the compiled code!
     stacksize: max anticipated size of the value stack
@@ -209,11 +235,11 @@ def calc_module_code_to_pyc_contents(codestring, stacksize, names, constants, fi
     return c
 
 if __name__ == '__main__':
-   args = sys.argv[1:]
-   if len(args) > 0:
-       filename, = args
-       assert filename.endswith('.calc')
-       compile_calc_file(args)
-   else:
-       import doctest
-       doctest.testmod()
+    args = sys.argv[1:]
+    if len(args) > 0:
+        filename, = args
+        assert filename.endswith('.calc')
+        compile_calc_file(args)
+    else:
+        import doctest
+        doctest.testmod()

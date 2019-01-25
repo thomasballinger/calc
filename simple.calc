@@ -1,0 +1,10 @@
+print(1 + 2);
+x = 12123123;
+print(x);
+a = () =>
+  d = 10;
+  e = 20;
+  print(1);
+  print(2);
+  print(3);
+end;

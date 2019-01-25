@@ -10,7 +10,7 @@ If = namedtuple('If', ['condition', 'body', 'else_body'])
 While = namedtuple('While', ['condition', 'body'])
 Call = namedtuple('Call', ['callable', 'arguments'])
 Return = namedtuple('Return', ['expression'])
-Function = namedtuple('Function', ['params', 'body'])
+Function = namedtuple('Function', ['params', 'body', 'token'])
 Class = namedtuple('Class', ['name', 'extends', 'body'])
 PropAccess = namedtuple('PropAccess', ['left', 'prop'])
 Run = namedtuple('Run', ['filename'])
@@ -357,7 +357,7 @@ def parse_primary(tokens):
 def parse_function(tokens):
     """
     >>> parse_function(tokenize('() => end'))[0]
-    Function(params=[], body=[])
+    Function(params=[], body=[], token=Token(kind='Equals'))
     >>> parse_function(tokenize('(x, y) => a; end'))[0]
     Function(params=[Token(kind='Variable', content='x'), Token(kind='Variable', content='y')], body=[Token(kind='Variable', content='a')])
 
@@ -382,7 +382,7 @@ def parse_function(tokens):
         stmt, remaining_tokens = parse_statement(remaining_tokens)
         statements.append(stmt)
     end, *remaining_tokens = remaining_tokens
-    return Function(params=parameters, body=statements), remaining_tokens
+    return Function(params=parameters, body=statements, token=equals), remaining_tokens
 
 
 if __name__ == '__main__':

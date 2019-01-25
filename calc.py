@@ -1,7 +1,8 @@
 import sys as _sys
 
 from debugrepl import debug_repl
-from compile import calc_source_to_python_func
+from compile import calc_source_to_python_code_object
+from compile import calc_source_to_python_module
 from importhack import shim as _shim
 
 if __name__ == '__main__':

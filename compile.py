@@ -13,6 +13,9 @@ TOKEN_TO_BINOP = {
     '+': 'BINARY_ADD',
     '-': 'BINARY_SUBTRACT',
     '/': 'BINARY_TRUE_DIVIDE',
+    '<': ('COMPARE_OP', opcode.cmp_op.index('<')),
+    '>': ('COMPARE_OP', opcode.cmp_op.index('>')),
+    '==': ('COMPARE_OP', opcode.cmp_op.index('==')),
 }
 
 def compile_expression(node, code):
@@ -58,7 +61,21 @@ def compile_statement(stmt, code):
         code.add_store_var_op(stmt.lhs.content, stmt.lhs.lineno)
         return code
     elif isinstance(stmt, If):
-        raise ValueError(f"don't know how to compile stmt of type {type(stmt)}")
+        compile_expression(stmt.condition, code)
+        if stmt.else_body:
+            else_label = code.make_label('else')
+            code.add_op(('POP_JUMP_IF_FALSE', else_label), None)
+            for s in stmt.body:
+                compile_statement(s, code)
+            end_label = code.make_label('end')
+            code.add_op(('JUMP_ABSOLUTE', end_label), None)
+            code.set_target(else_label)
+            for s in stmt.body:
+                compile_statement(s, code)
+            code.set_target(end_label)
+        else:
+            raise ValueError(f"TODO: if without else")
+        return code
     elif isinstance(stmt, While):
         raise ValueError(f"don't know how to compile stmt of type {type(stmt)}")
     elif isinstance(stmt, Run):

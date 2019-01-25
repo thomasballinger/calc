@@ -1,0 +1,10 @@
+foo = () =>
+    print(1);
+    x = 2;
+    if x < 3 then
+        y = 4;
+    else
+        y = 0;
+    end;
+    print(y);
+end;

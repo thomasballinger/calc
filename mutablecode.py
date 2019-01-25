@@ -6,6 +6,7 @@ class MutableCode:
         self.scope_analyzer = scope_analyzer  # used to get nested scopes
         self.opcodes = []  # the compiled code!
         self.linenos = []
+        self.labels = {}
 
         self.constants = []  # All the numbers, strings, booleans we'll need, always including None
         self.names = []  # globals and attribute
@@ -100,6 +101,15 @@ class MutableCode:
         self.opcodes.append(op if arg is None else (op, arg))
         self.linenos.append(lineno)
 
+    def make_label(self, comment='?'):
+        label = f'label-{len(self.labels)}-{comment}'
+        self.labels[label] = None
+        return label
+
+    def set_target(self, label):
+        """Sets a label to the point to the next bytecode"""
+        self.labels[label] = len(self.opcodes)
+
     def build_firstlineno_lnotab(self):
         if self.firstlineno is None:
             firstlineno = self.linenos[0]
@@ -118,6 +128,15 @@ class MutableCode:
                 last_lineno = lineno
         return firstlineno, bytes(offsets)
 
+    def resolve_labels(self):
+        for i in range(len(self.opcodes)):
+            if len(self.opcodes[i]) == 2 and isinstance(self.opcodes[i][1], str):
+                label = self.opcodes[i][1]
+                assert label.startswith('label'), f"bad label name: {self.opcodes[i]}"
+                value = self.labels[label] * 2  # for two bytes per opcode
+                #print('resolving label', self.opcodes[i][1], 'to', value)
+                self.opcodes[i] = (self.opcodes[i][0], value)
+
     def to_code_object(self):
 
         # names = []  # global variables or attribute calls
@@ -125,6 +144,7 @@ class MutableCode:
         # freevars: references to outer scopes
         # cellvars: local variables referenced by inner scopes
 
+        self.resolve_labels()
         codestring = opcode_strings_to_codestring(self.opcodes)
         firstlineno, lnotab = self.build_firstlineno_lnotab()
         codeobj = module_code_to_pyc_contents(

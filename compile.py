@@ -6,11 +6,13 @@ import opcode
 import os
 
 class MutableCode:
-    def __init__(self):
+    def __init__(self, filename=None, name=None):
         self.opcodes = []  # the compiled code!
         self.stacksize = 100  # max anticipated size of the value stack
         self.names = []  # global variables or attribute calls
         self.constants = []  # All the numbers, strings, booleans we'll need, always including None
+        self.filename = filename or 'fakefilename'
+        self.name = name or 'fakename'
 
     def register_name(self, name):
         if name in self.names:
@@ -18,7 +20,7 @@ class MutableCode:
         self.names.append(name)
         return len(self.names) - 1
 
-    def register_constant(self, const):
+    def register_const(self, const):
         if const in self.constants:
             return self.constants.index(const)
         self.constants.append(const)
@@ -36,15 +38,15 @@ class MutableCode:
 
         self.opcodes.append(op if arg is None else (op, arg))
 
-    def to_code_object(self, source_filename, name):
+    def to_code_object(self):
         codestring = opcode_strings_to_codestring(self.opcodes)
         codeobj = module_code_to_pyc_contents(
             codestring=codestring,
             stacksize=100,
             names=tuple(self.names),
             constants=tuple(self.constants),
-            filename=source_filename,
-            name=name
+            filename=self.filename,
+            name=self.name,
         )
         return codeobj
 
@@ -93,7 +95,7 @@ def compile_expression_from_source(source):
 def compile_expression(node, code):
     if isinstance(node, Token):
         if node.kind == 'Number':
-            n = code.register_constant(node.content)
+            n = code.register_const(node.content)
             code.add_op('LOAD_CONST', n)
             return code
         elif node.kind == 'Variable':
@@ -103,7 +105,7 @@ def compile_expression(node, code):
             code.add_op('LOAD_GLOBAL', n)
             return code
         elif node.kind == 'String':
-            n = code.register_constant(node.content)
+            n = code.register_const(node.content)
             code.add_op('LOAD_CONST', n)
             return code
 
@@ -115,9 +117,7 @@ def compile_expression(node, code):
     elif isinstance(node, UnaryOp):
         raise ValueError
     elif isinstance(node, Function):
-        func_code = compile_function(node)
-        n = code.register_const(func_code)
-        code.add_op('LOAD_CONST', n)
+        compile_function(node.params, node.body, code)
         return code
     elif isinstance(node, Call):
         compile_expression(node.callable, code)
@@ -149,26 +149,36 @@ def compile_statement(stmt, code):
     else:
         raise ValueError("don't know how to compile stmt of type {type(stmt)}")
 
-def compile_module(stmts):
-    code = MutableCode()
+def compile_module(stmts, source_filename, name):
+    code = MutableCode(source_filename, name)
     for stmt in stmts:
         compile_statement(stmt, code)
-    n = code.register_constant(None)
+
+    # modules always end with an implicit return None
+    n = code.register_const(None)
     code.add_op('LOAD_CONST', n)
     code.add_op('RETURN_VALUE')
     return code
 
-def compile_function(params, stmts):
-    code = MutableCode()
+def compile_function(params, stmts, code):
+    func_code = MutableCode(filename=code.filename, name=code.name)
     for stmt in stmts:
-        compile_statement(stmt, code)
-    n = code.register_constant(None)
+        compile_statement(stmt, func_code)
+
+    # add a return None in case execute reaches here (but other returns are allowed)
+    n = func_code.register_const(None)
+    func_code.add_op('LOAD_CONST', n)
+    func_code.add_op('RETURN_VALUE')
+    func_code_obj = func_code.to_code_object()
+    n = code.register_const(func_code_obj)
     code.add_op('LOAD_CONST', n)
-    code.add_op('RETURN_VALUE')
+    n = code.register_const(func_code.name)
+    code.add_op('LOAD_CONST', n)
+    code.add_op('MAKE_FUNCTION', 0)  # arg is number of default parameters, always 0 for calc
     return code
 
 def calc_ast_to_python_code_object(stmts, source_filename='fakefile', name='calc_code'):
-    return compile_module(stmts).to_code_object(source_filename, name)
+    return compile_module(stmts, source_filename, name).to_code_object()
 
 def calc_ast_to_python_func(stmts):
     codeobj = calc_ast_to_python_code_object(stmts, 'fakefile', 'calc_function')
@@ -213,7 +223,7 @@ def opcode_strings_to_codestring(opcodes):
     return codestring
 
 
-def module_code_to_pyc_contents(codestring, stacksize, names, constants, filename='fake_filename', name='fake_name'):
+def module_code_to_pyc_contents(codestring, stacksize, names, constants, filename, name):
     """
     codestring: the compiled code!
     stacksize: max anticipated size of the value stack

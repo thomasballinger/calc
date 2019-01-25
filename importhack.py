@@ -22,16 +22,23 @@ class CalcImporter(object):
             return None
         return None
 
+code_to_pyc = None
+import importlib
+if hasattr(importlib._bootstrap_external, '_code_to_timestamp_pyc'):
+    code_to_pyc = importlib._bootstrap_external._code_to_timestamp_pyc
+elif hasattr(importlib._bootstrap_external, '_code_to_bytecode'):
+    code_to_pyc = importlib._bootstrap_external._code_to_bytecode
+
 # just for testing
 def python_code_to_pyc_contents(source, filename):
     code = compile(source, filename, 'exec')
-    return importlib._bootstrap_external._code_to_timestamp_pyc(code, mtime=0, source_size=0)
+    return code_to_pyc(code, mtime=0, source_size=0)
 
 def calc_code_to_pyc_contents(source, filename):
     tokens = tokenize(source)
     statements = parse(tokens)
     code = calc_ast_to_python_code_object(statements, filename)
-    return importlib._bootstrap_external._code_to_timestamp_pyc(code, mtime=0, source_size=0)
+    return code_to_pyc(code, mtime=0, source_size=0)
 
 def shim():
     # remove any previously-added CalcImporter (to avoid multiple print messages)

@@ -1,6 +1,6 @@
 import sys as _sys
 
-from main import debug_repl
+from debugrepl import debug_repl
 from compile import calc_source_to_python_func
 from importhack import shim as _shim
 

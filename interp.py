@@ -2,7 +2,9 @@ from parse import BinaryOp, UnaryOp, pprint_tree, parse, Assignment, If, While, 
 from tokens import Token, tokenize
 import time
 
-from num2words import num2words
+def num2words(n):
+    """Replacement because the third-party package disappeared"""
+    return str(n)
 
 DEBUG = False
 

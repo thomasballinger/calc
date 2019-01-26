@@ -2,7 +2,7 @@ import unittest
 import sys
 from textwrap import dedent
 
-from calc import calc_source_to_python_module
+from calc import calc_source_to_python_module, calc_source_to_python_code_object
 from parse import parse
 from tokens import tokenize
 from scope_analysis import ScopeAnalyzer
@@ -27,6 +27,9 @@ def python_module(source):
     return module
 
 class TestCompile(unittest.TestCase):
+
+    def test_compile_tool(self):
+        calc_source_to_python_code_object('a = 1; b = "hello";')
 
     def test_simpler(self):
         calcmod = calc_source_to_python_module(dedent("""

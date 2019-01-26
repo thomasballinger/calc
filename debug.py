@@ -1,6 +1,9 @@
 import calc
-import simpleif
+import simple
 import pudb
 pudb.set_trace()
 
-simpleif.foo()
+
+a = 1
+simple.foo()
+b = 2

@@ -207,9 +207,6 @@ def module_code_to_pyc_contents(argcount, nlocals, codestring, constants, names,
     name: function or module name
     """
     kwonlyargcount = 0  # calc functions have no kwarg-only args
-    nlocals = 0  # modules just have global variables, no locals
-    freevars = ()  #  (none for modules)
-    callvars = ()  # local variables referenced by nested functions (none for modules)
     fake_stacksize = 100
 
     OPTIMIZED = NEWLOCALS = VARARGS = VARKEYWORDS = NESTED = GENERATOR = NOFREE = COROUTINE = ITERABLE_COROUTINE = False

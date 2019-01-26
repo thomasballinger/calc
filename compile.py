@@ -33,12 +33,9 @@ def compile_expression(node, code):
             return code
 
     elif isinstance(node, BinaryOp):
-        compile_expression(node.left, code)
-        compile_expression(node.right, code)
-        code.add_op(TOKEN_TO_BINOP[node.op.content], None)
-        return code
+        raise ValueError("can't compile binaryop")
     elif isinstance(node, UnaryOp):
-        raise ValueError
+        raise ValueError("can't compile unaryop")
     elif isinstance(node, Function):
         compile_function(node, code)
         return code
@@ -61,27 +58,14 @@ def compile_statement(stmt, code):
         code.add_store_var_op(stmt.lhs.content, stmt.lhs.lineno)
         return code
     elif isinstance(stmt, If):
-        compile_expression(stmt.condition, code)
-        if stmt.else_body:
-            else_label = code.make_label('else')
-            code.add_op(('POP_JUMP_IF_FALSE', else_label), None)
-            for s in stmt.body:
-                compile_statement(s, code)
-            end_label = code.make_label('end')
-            code.add_op(('JUMP_ABSOLUTE', end_label), None)
-            code.set_target(else_label)
-            for s in stmt.body:
-                compile_statement(s, code)
-            code.set_target(end_label)
-        else:
-            raise ValueError(f"TODO: if without else")
-        return code
+        raise ValueError(f"don't know how to compile stmt of type {type(stmt)}")
     elif isinstance(stmt, While):
         raise ValueError(f"don't know how to compile stmt of type {type(stmt)}")
     elif isinstance(stmt, Run):
         raise ValueError(f"don't know how to compile stmt of type {type(stmt)}")
     elif isinstance(stmt, Return):
-        raise ValueError(f"don't know how to compile stmt of type {type(stmt)}")
+        code = compile_expression(stmt.expression, code)
+        code.add_op('RETURN_VALUE', None)
     else:
         raise ValueError(f"don't know how to compile stmt of type {type(stmt)}")
 
@@ -147,7 +131,7 @@ def calc_ast_to_python_module(stmts):
     return module
 
 def calc_source_to_python_code_object(s):
-    return calc_ast_to_python_code_object(tokenize(parse(s)), 'fakefile.calc', 'calc_code')
+    return calc_ast_to_python_code_object(parse(tokenize(s)), 'fakefile.calc', 'calc_code')
 
 def calc_source_to_python_func(s):
     """
